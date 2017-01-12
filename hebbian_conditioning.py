@@ -1,4 +1,5 @@
 """
+Supplement for Embodied AI exercise 
 Simplified version of DAC example from lecture slides Lecture 6 (part ii)
 
 2017 Oswald Berthold 
