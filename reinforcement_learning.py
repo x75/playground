@@ -163,7 +163,7 @@ class Agent(object):
         return a
 
 class TD0PredictionAgent(Agent):
-    def __init__(self, ndim_s = 3, ndim_a = 1, ndim_x = 3, ndim_y = 3):
+    def __init__(self, ndim_s = 3, ndim_a = 1, ndim_x = 3, ndim_y = 3, alpha = 1e-3, gamma = 0.0):
         Agent.__init__(self, ndim_s, ndim_a)
 
         # world dims
@@ -171,10 +171,10 @@ class TD0PredictionAgent(Agent):
         self.ndim_y = ndim_y
 
         # learning rate
-        self.alpha = 5e-3
+        self.alpha = alpha # 5e-3
         
         # discount factor
-        self.gamma = 0.7
+        self.gamma = gamma # 0.7
         
         # hardcoded gridworld actions
         self.actions = ["nop", "n", "e", "s", "w", "ne", "nw", "se", "sw"]
@@ -187,7 +187,7 @@ class TD0PredictionAgent(Agent):
     def step(self, s):
         if self.terminal:
             self.terminal_ -= 1
-        # sensory measurement
+        # sensory measurement: x, y, reward
         self.s = s.copy()
         print "%s.step s = %s" % (self.__class__.__name__, self.s)
 
@@ -233,17 +233,23 @@ def plot_draw_ev(fig, gs, axs, ev):
         ax_s.pcolormesh(ev.s[i], cmap=plt.get_cmap("gray"))
         ax_s.plot([ev.goal[0,0] + 0.5], [ev.goal[1,0] + 0.5], "ro", markersize = 20, alpha= 0.5)
         ax_v = axs[i][1]
-        ax_v.pcolormesh(ev.agents[i].v, cmap=plt.get_cmap("gray"), vmin = 0.0, vmax = 1.0)
+        # v_img = np.log(ev.agents[i].v + 1.0)
+        v_img = ev.agents[i].v
+        ax_v.pcolormesh(v_img, cmap=plt.get_cmap("gray"), vmin = 0.0, vmax = 1.0)
     plt.draw()
     plt.pause(1e-3)
         
 def td_0_prediction(args):
     numepisodes = args.numepisodes
     maxsteps    = args.maxsteps
+    plotfreq    = args.plotfreq
     
-    ag = TD0PredictionAgent(ndim_s = 3, ndim_a = 1)
+    world_x = 5
+    world_y = 5
+    
+    ag = TD0PredictionAgent(ndim_s = 3, ndim_a = 1, ndim_x = world_x, ndim_y = world_y, alpha = args.alpha, gamma = args.gamma)
     # ag2 = TD0PredictionAgent(ndim_s = 3, ndim_a = 1)
-    ev = GridEnvironment(agents = [ag], num_x = 3, num_y = 3)
+    ev = GridEnvironment(agents = [ag], num_x = 5, num_y = 5)
 
     s = ag.s
     a = ag.a
@@ -264,7 +270,7 @@ def td_0_prediction(args):
             # step the world
             ev.step()
             # print "td_0_prediction a[t = %d] = %s, s[t = %d] = %s" % (t, a, t, s)
-            if t % 50 == 0:
+            if t % plotfreq == 0:
                 plot_draw_ev(fig, gs, axs, ev)
             terminal = np.all(np.array([agent.terminal_ < 1 for agent in ev.agents]))
             t += 1
@@ -284,9 +290,12 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("-a",  "--alpha", default=1e-2,  type=float, help="Learning rate \alpha")
+    parser.add_argument("-g",  "--gamma", default=0,  type=float, help="Discount factor \gamma")
     parser.add_argument("-ne", "--numepisodes", default=10,  type=int, help="Number of episodes")
     parser.add_argument("-ms", "--maxsteps",    default=100, type=int, help="Maximum number of steps per episodes")
     parser.add_argument("-sm", "--sensorimotor_loop", default="td_0_prediction", type=str, help="Which sm loop (Learner), one of " + ", ".join(sensorimotor_loops))
+    parser.add_argument("-p",  "--plotfreq", default=100, type=int, help="Plotting interval in steps")
     
     args = parser.parse_args()
     
