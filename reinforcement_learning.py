@@ -56,7 +56,7 @@ class GridEnvironment(Environment):
         self.reset()
         
     def reset(self):
-        print "%s.reset" % self.__class__.__name__
+        # print "%s.reset" % self.__class__.__name__
         # init state
         self.s = np.zeros((len(self.agents), self.num_x, self.num_y))
         
@@ -82,7 +82,7 @@ class GridEnvironment(Environment):
             # get agent reward
             a_reward = self.decode_loc_to_reward(a_pos)
             # debug
-            print "a_pos, a_reward", a_pos, a_reward
+            # print "a_pos, a_reward", a_pos, a_reward
             # compute agent sensors from location and reward
             sensors = np.array([a_pos.flatten().tolist() + [a_reward]]).T
 
@@ -95,7 +95,7 @@ class GridEnvironment(Environment):
             
             self.s[agent_idx] = self.do_action(agent_idx, a)
             
-            print "%s.step #%04d a_%d = %s, s_%d = %s" % (self.__class__.__name__, self.t, agent_idx, a, agent_idx, self.s[agent_idx])
+            # print "%s.step #%04d a_%d = %s, s_%d = %s" % (self.__class__.__name__, self.t, agent_idx, a, agent_idx, self.s[agent_idx])
         self.t += 1
         return self.s
 
@@ -228,14 +228,14 @@ class TD0PredictionAgent(Agent):
         # print "v", l_x, l_y, self.v[l_x, l_y]
         
         # back up old state value once
-        v_s_tm1 = self.v[l_x_tm1, l_y_tm1].copy()
+        self.v_s_tm1 = self.v[l_x_tm1, l_y_tm1].copy()
         # perform update, SB2nded pg. ?, eq. ?
-        self.v[l_x_tm1, l_y_tm1] = v_s_tm1 + self.alpha * (self.s[2,0] + self.gamma * self.v[l_x, l_y] - v_s_tm1)
+        self.v[l_x_tm1, l_y_tm1] = self.v_s_tm1 + self.alpha * (self.s[2,0] + self.gamma * self.v[l_x, l_y] - self.v_s_tm1)
 
         # back up old state-action value once
-        q_sa_tm1 = self.q[l_x_tm1, l_y_tm1, l_a_tm1].copy()
+        self.q_sa_tm1 = self.q[l_x_tm1, l_y_tm1, l_a_tm1].copy()
         # perform update, SB2nded pg. ?, eq. ?
-        self.q[l_x_tm1, l_y_tm1, l_a_tm1] = q_sa_tm1 + self.alpha * (self.s[2,0] + self.gamma * self.q[l_x, l_y, l_a_tm1] - q_sa_tm1)
+        self.q[l_x_tm1, l_y_tm1, l_a_tm1] = self.q_sa_tm1 + self.alpha * (self.s[2,0] + self.gamma * self.q[l_x, l_y, l_a_tm1] - self.q_sa_tm1)
                 
         # policy: some functional thing that produces an action
         self.a = np.random.randint(len(self.actions), size=self.a.shape)
@@ -288,13 +288,16 @@ def plot_pcolor_coordinates():
 
 def plot_draw_ev(fig, gs, axs, ev):
     for i, a in enumerate(ev.agents):
-        print "plot_draw_ev s_%d = %s" % (i, ev.s[i])
+        # print "plot_draw_ev s_%d = %s" % (i, ev.s[i])
 
         # x = 
         
         # plot state
         ax_s = axs[i][0]
-        print "ev.s[i].shape", ev.s[i].shape, a.v.shape, a.q.shape
+        # clean up
+        ax_s.clear()
+        
+        # print "ev.s[i].shape", ev.s[i].shape, a.v.shape, a.q.shape
         ax_s.pcolormesh(ev.s[i].T, cmap=plt.get_cmap("gray"))
         # ax_s.pcolormesh(ev.s[i][::-1], cmap=plt.get_cmap("gray"))
         ax_s.plot([ev.goal[0,0] + 0.5], [ev.goal[1,0] + 0.5], "ro", markersize = 20, alpha= 0.5)
@@ -308,7 +311,7 @@ def plot_draw_ev(fig, gs, axs, ev):
         # plot state-action value
         ax_q = axs[i][2]
         q_img = dimensional_stacking(ev.agents[i].q, [2, 1], [0])
-        print "q_img.shape", q_img.shape
+        # print "q_img.shape", q_img.shape
         plt.pcolormesh(q_img, cmap=plt.get_cmap("gray"))# , vmin = 0.0, vmax = 1.0)
         
     plt.draw()
@@ -352,7 +355,7 @@ def rl_experiment(args):
         terminal = False
         while not terminal and t < args.maxsteps:
         # for t in range(maxsteps):
-            print "epi %d, step %d" % (i, t)
+            # print "epi %d, step %d" % (i, t)
             # step the world
             ev.step()
             # print "td_0_prediction a[t = %d] = %s, s[t = %d] = %s" % (t, a, t, s)
@@ -360,6 +363,7 @@ def rl_experiment(args):
                 plot_draw_ev(fig, gs, axs, ev)
             terminal = np.all(np.array([agent.terminal_ < 1 for agent in ev.agents]))
             t += 1
+        print "epi %d, final step %d" % (i, t)
 
     print "ev.steps = %d" % (ev.t)
     print "ag.steps = %d" % (ag.t)
