@@ -488,6 +488,7 @@ def main_dimstack():
     Xn = np.random.normal([0.1, 0.5, 1.0, 2.0], [0.2, 1.0, 0.5, 0.1], (10000, 4)) #, X.shape)
     X = X + Xn
     print "X.shape", X.shape
+    # use a histogram, that is scatterstack
     Xh = np.histogramdd(X, bins=10)
     # print "type(Xh)", type(Xh)
     print "histo shape Xh", Xh[0].shape

@@ -6,14 +6,22 @@ Some Reinforcement Learning examples
 2017 Oswald Berthold
 """
 
+# notes
+#  use pushback for implementing lambda?
 
 import argparse, sys
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
+# uh oh
+from smp.dimstack import dimensional_stacking
+
+
 sensorimotor_loops = [
-    "td_0_prediction",
+    "td_0_prediction",         # TD(0) prediction of v
+    "td_0_off_policy_control", # aka Q-Learning
+    "td_0_on_policy_control",  # aka SARSA"
     ]
 
 class Environment(object):
@@ -36,14 +44,13 @@ class GridEnvironment(Environment):
         self.num_x, self.num_y = num_x, num_y
         self.lim_l = np.array([[0], [0]])
         self.lim_u = np.array([[self.num_x-1], [self.num_y-1]])
-        # fixed
-        self.goal = np.array([[2], [2]])
+        # # constant goal
+        # self.goal = np.array([[2], [2]])
+        # random fixed goal
+        self.goal = np.random.uniform([0, 0], [self.num_x, self.num_y], size=(1, 2)).T.astype(int) # 
 
         self.reset()
         
-        # initialize goal
-        # print "s", self.s
-
     def reset(self):
         print "%s.reset" % self.__class__.__name__
         # init state
@@ -179,34 +186,60 @@ class TD0PredictionAgent(Agent):
         # hardcoded gridworld actions
         self.actions = ["nop", "n", "e", "s", "w", "ne", "nw", "se", "sw"]
         self.actions_num = np.arange(len(self.actions), dtype=int).reshape((len(self.actions), 1))
+        # action
         self.a = np.zeros((self.actions_num.shape[1], 1))
+        self.a_tm1 = self.a.copy()
+        # state
         self.s = np.zeros((ndim_s, 1)) # x, y, r
         self.s_tm1 = self.s.copy()
-        self.v = np.zeros((self.ndim_x, self.ndim_y))
+        
+        # estimated state value function v
+        self.v = np.ones((self.ndim_x, self.ndim_y)) * 2.0
+        # estimated state-action value function q
+        q_shape = (self.ndim_x, self.ndim_y, len(self.actions))
+        self.q = np.ones(q_shape) * 2.0
+        # self.q = np.random.uniform(0, 10, q_shape)
+        # self.q = np.arange(np.prod(q_shape)).reshape(q_shape)
 
     def step(self, s):
+        # stop episode
         if self.terminal:
             self.terminal_ -= 1
-        # sensory measurement: x, y, reward
+            
+        # sensory measurement: [x, y, reward].T
         self.s = s.copy()
-        print "%s.step s = %s" % (self.__class__.__name__, self.s)
+        # print "%s.step s = %s" % (self.__class__.__name__, self.s)
 
-        # update v
+        # current state
         l_x = int(self.s[0,0])
         l_y = int(self.s[1,0])
+        # last state
         l_x_tm1 = int(self.s_tm1[0,0])
         l_y_tm1 = int(self.s_tm1[1,0])
-
-        print "l", l_x, l_y, "l_tm1", l_x_tm1, l_y_tm1
+        l_a_tm1   = self.a_tm1[0,0]
+        # print "l", l_x, l_y, "l_tm1", l_x_tm1, l_y_tm1
                 
-        print "v", l_x, l_y, self.v[l_x, l_y]
-        v_s_tm1 = self.v[l_x_tm1, l_y_tm1].copy()
-        self.v[l_x_tm1, l_y_tm1] = v_s_tm1 + self.alpha * (self.s[2,0] + self.gamma * self.v[l_x, l_y] - v_s_tm1)
+        # update v
+        # print "v", l_x, l_y, self.v[l_x, l_y]
         
-        # policy
+        # back up old state value once
+        v_s_tm1 = self.v[l_x_tm1, l_y_tm1].copy()
+        # perform update, SB2nded pg. ?, eq. ?
+        self.v[l_x_tm1, l_y_tm1] = v_s_tm1 + self.alpha * (self.s[2,0] + self.gamma * self.v[l_x, l_y] - v_s_tm1)
+
+        # back up old state-action value once
+        q_sa_tm1 = self.q[l_x_tm1, l_y_tm1, l_a_tm1].copy()
+        # perform update, SB2nded pg. ?, eq. ?
+        self.q[l_x_tm1, l_y_tm1, l_a_tm1] = q_sa_tm1 + self.alpha * (self.s[2,0] + self.gamma * self.q[l_x, l_y, l_a_tm1] - q_sa_tm1)
+                
+        # policy: some functional thing that produces an action
         self.a = np.random.randint(len(self.actions), size=self.a.shape)
         # print self.a
+
+        # back up state
         self.s_tm1 = self.s.copy()
+        # back up action
+        self.a_tm1 = self.a.copy()
         self.t += 1
         return self.a
 
@@ -216,38 +249,65 @@ class TD0PredictionAgent(Agent):
 def plot_init(ev):
     plt.ion()
     fig = plt.figure()
-    gs = gridspec.GridSpec(len(ev.agents), 2)
+    gs_numcol = 3
+    gs = gridspec.GridSpec(len(ev.agents), gs_numcol)
     axs = []
     for i, a in enumerate(ev.agents):
-        axs.append([fig.add_subplot(gs[2*i]), fig.add_subplot(gs[2*i+1])])
+        axs.append([
+            fig.add_subplot(gs[gs_numcol*i]),
+            fig.add_subplot(gs[gs_numcol*i+1]),
+            fig.add_subplot(gs[gs_numcol*i+2])
+            ])
         axs[-1][0].set_title("Agent %d state" % i)
-        axs[-1][1].set_title("Agent %d value" % i)
+        axs[-1][1].set_title("Agent %d s  value" % i)
+        axs[-1][2].set_title("Agent %d sa value" % i)
         axs[-1][0].set_aspect(1)
         axs[-1][1].set_aspect(1)
+        axs[-1][2].set_aspect(45/5)
     return fig, gs, axs
 
 def plot_draw_ev(fig, gs, axs, ev):
     for i, a in enumerate(ev.agents):
-        # if a.terminal: return
+        # plot state
         ax_s = axs[i][0]
         ax_s.pcolormesh(ev.s[i], cmap=plt.get_cmap("gray"))
         ax_s.plot([ev.goal[0,0] + 0.5], [ev.goal[1,0] + 0.5], "ro", markersize = 20, alpha= 0.5)
+
+        # plot state value
         ax_v = axs[i][1]
         # v_img = np.log(ev.agents[i].v + 1.0)
         v_img = ev.agents[i].v
-        ax_v.pcolormesh(v_img, cmap=plt.get_cmap("gray"), vmin = 0.0, vmax = 1.0)
+        ax_v.pcolormesh(v_img, cmap=plt.get_cmap("gray"), vmin = 0.0) # , vmax = 1.0)
+
+        # plot state-action value
+        ax_q = axs[i][2]
+        q_img = dimensional_stacking(ev.agents[i].q, [2, 0], [1])
+        print "q_img.shape", q_img.shape
+        plt.pcolormesh(q_img, cmap=plt.get_cmap("gray"))# , vmin = 0.0, vmax = 1.0)
+        
     plt.draw()
     plt.pause(1e-3)
         
-def td_0_prediction(args):
-    numepisodes = args.numepisodes
-    maxsteps    = args.maxsteps
-    plotfreq    = args.plotfreq
+
+def get_agent(args):
+    if args.sensorimotor_loop == "td_0_prediction":
+        return TD0PredictionAgent(ndim_s = 3, ndim_a = 1, ndim_x = args.world_x, ndim_y = args.world_y, alpha = args.alpha, gamma = args.gamma)
+    elif args.sensorimotor_loop == "td_0_off_policy_control":
+        return TD0OffPolicyControlAgent()
+    # elif args.sensorimotor_loop == "td_0_on_policy_control":
+    else:
+        print "Unknown sm loop %s, exiting" % (args.sensorimotor_loop)
+        sys.exit(1)
     
-    world_x = 5
-    world_y = 5
+def rl_experiment(args):
+    # numepisodes = args.numepisodes
+    # maxsteps    = args.maxsteps
+    # plotfreq    = args.plotfreq
     
-    ag = TD0PredictionAgent(ndim_s = 3, ndim_a = 1, ndim_x = world_x, ndim_y = world_y, alpha = args.alpha, gamma = args.gamma)
+    setattr(args, "world_x", 5)
+    setattr(args, "world_y", 5)
+    
+    ag = get_agent(args)
     # ag2 = TD0PredictionAgent(ndim_s = 3, ndim_a = 1)
     ev = GridEnvironment(agents = [ag], num_x = 5, num_y = 5)
 
@@ -259,18 +319,18 @@ def td_0_prediction(args):
     print "environment", ev
     print "      agent", ag
 
-    for i in range(numepisodes):
+    for i in range(args.numepisodes):
         # reset agent
         ev.reset()
         t = 0
         terminal = False
-        while not terminal and t < maxsteps:
+        while not terminal and t < args.maxsteps:
         # for t in range(maxsteps):
             print "epi %d, step %d" % (i, t)
             # step the world
             ev.step()
             # print "td_0_prediction a[t = %d] = %s, s[t = %d] = %s" % (t, a, t, s)
-            if t % plotfreq == 0:
+            if t % args.plotfreq == 0:
                 plot_draw_ev(fig, gs, axs, ev)
             terminal = np.all(np.array([agent.terminal_ < 1 for agent in ev.agents]))
             t += 1
@@ -278,15 +338,16 @@ def td_0_prediction(args):
     print "ev.steps = %d" % (ev.t)
     print "ag.steps = %d" % (ag.t)
 
+    # save result
+    for i, agent in enumerate(ev.agents):
+        np.save("td0_ag%d_v.npy" % i, agent.v)
+        np.save("td0_ag%d_q.npy" % i, agent.q)
+
     plt.ioff()
     plt.show()
-    
+            
 def main(args):
-    if args.sensorimotor_loop == "td_0_prediction":
-        td_0_prediction(args)
-    else:
-        print "Unknown sm loop %s, exiting" % (args.sensorimotor_loop)
-        sys.exit(1)
+    rl_experiment(args)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
