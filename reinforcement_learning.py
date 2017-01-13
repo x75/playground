@@ -45,9 +45,13 @@ class GridEnvironment(Environment):
         self.lim_l = np.array([[0], [0]])
         self.lim_u = np.array([[self.num_x-1], [self.num_y-1]])
         # # constant goal
-        self.goal = np.array([[4], [1]])
+        # self.goal = np.array([[4], [1]])
+        # self.goal = np.array([[2], [3]])
+        # self.goal = np.array([[0], [0]])
+        # self.goal = np.array([[0], [2]])
+        # self.goal = np.array([[1], [2]])
         # random fixed goal
-        # self.goal = np.random.uniform([0, 0], [self.num_x, self.num_y], size=(1, 2)).T.astype(int) # 
+        self.goal = np.random.uniform([0, 0], [self.num_x, self.num_y], size=(1, 2)).T.astype(int) # 
 
         self.reset()
         
@@ -72,6 +76,7 @@ class GridEnvironment(Environment):
         for agent_idx, agent  in enumerate(self.agents):
             # if agent.terminal:
             #     return self.s
+            # print "ev.s", self.s[agent_idx]
             # get agent location as coordinates
             a_pos    = self.decode_state_to_loc(self.s[agent_idx])
             # get agent reward
@@ -90,7 +95,7 @@ class GridEnvironment(Environment):
             
             self.s[agent_idx] = self.do_action(agent_idx, a)
             
-            print "%s.step #%04d a_%d = %s" % (self.__class__.__name__, self.t, agent_idx, a)
+            print "%s.step #%04d a_%d = %s, s_%d = %s" % (self.__class__.__name__, self.t, agent_idx, a, agent_idx, self.s[agent_idx])
         self.t += 1
         return self.s
 
@@ -194,7 +199,7 @@ class TD0PredictionAgent(Agent):
         self.s_tm1 = self.s.copy()
         
         # estimated state value function v
-        self.v = np.ones((self.ndim_x, self.ndim_y)) * 2.0
+        self.v = np.ones((self.ndim_x, self.ndim_y)) * 0.1
         # estimated state-action value function q
         q_shape = (self.ndim_x, self.ndim_y, len(self.actions))
         self.q = np.ones(q_shape) * 2.0
@@ -249,39 +254,60 @@ class TD0PredictionAgent(Agent):
 def plot_init(ev):
     plt.ion()
     fig = plt.figure()
-    gs_numcol = 3
-    gs = gridspec.GridSpec(len(ev.agents), gs_numcol)
+    fig.suptitle("TD(0) prediction learning for v and q")
+    gs_numcol = 1 + 1 # 1 + 1 + 4 # 3
+    gs = gridspec.GridSpec(len(ev.agents) * 2, gs_numcol)
     axs = []
     for i, a in enumerate(ev.agents):
         axs.append([
-            fig.add_subplot(gs[gs_numcol*i]),
-            fig.add_subplot(gs[gs_numcol*i+1]),
-            fig.add_subplot(gs[gs_numcol*i+2])
+            # fig.add_subplot(gs[gs_numcol*i]),
+            # fig.add_subplot(gs[gs_numcol*i+1]),
+            # fig.add_subplot(gs[gs_numcol*i+2:])
+            fig.add_subplot(gs[i*2+1,0]),
+            fig.add_subplot(gs[i*2+1,1]),
+            fig.add_subplot(gs[i*2,:])
             ])
-        axs[-1][0].set_title("Agent %d state" % i)
-        axs[-1][1].set_title("Agent %d s  value" % i)
-        axs[-1][2].set_title("Agent %d sa value" % i)
+        axs[-1][0].set_title("Agent %d state (position on grid)" % i, fontsize=8)
+        axs[-1][0].set_xlabel("x")
+        axs[-1][0].set_ylabel("y")
         axs[-1][0].set_aspect(1)
+        axs[-1][1].set_title("Agent %d state value v(s)" % i, fontsize = 8)
+        axs[-1][1].set_xlabel("x")
+        axs[-1][1].set_ylabel("y")
         axs[-1][1].set_aspect(1)
-        axs[-1][2].set_aspect(45/5)
+        axs[-1][2].set_title("Agent %d state-action value q(s,a)" % i, fontsize = 8)
+        axs[-1][2].set_xlabel("f(a, x)")
+        axs[-1][2].set_ylabel("y")
+        # axs[-1][2].set_aspect((len(a.actions)*ev.num_x)/float(ev.num_y))
+        # axs[-1][2].set_aspect((len(a.actions)*ev.num_x)/float(ev.num_y))
+        axs[-1][2].set_aspect(1)
     return fig, gs, axs
+
+def plot_pcolor_coordinates():
+    pass
 
 def plot_draw_ev(fig, gs, axs, ev):
     for i, a in enumerate(ev.agents):
+        print "plot_draw_ev s_%d = %s" % (i, ev.s[i])
+
+        # x = 
+        
         # plot state
         ax_s = axs[i][0]
-        ax_s.pcolormesh(ev.s[i], cmap=plt.get_cmap("gray"))
+        print "ev.s[i].shape", ev.s[i].shape, a.v.shape, a.q.shape
+        ax_s.pcolormesh(ev.s[i].T, cmap=plt.get_cmap("gray"))
+        # ax_s.pcolormesh(ev.s[i][::-1], cmap=plt.get_cmap("gray"))
         ax_s.plot([ev.goal[0,0] + 0.5], [ev.goal[1,0] + 0.5], "ro", markersize = 20, alpha= 0.5)
 
         # plot state value
         ax_v = axs[i][1]
         # v_img = np.log(ev.agents[i].v + 1.0)
-        v_img = ev.agents[i].v
+        v_img = ev.agents[i].v.T
         ax_v.pcolormesh(v_img, cmap=plt.get_cmap("gray"), vmin = 0.0) # , vmax = 1.0)
 
         # plot state-action value
         ax_q = axs[i][2]
-        q_img = dimensional_stacking(ev.agents[i].q, [2, 0], [1])
+        q_img = dimensional_stacking(ev.agents[i].q, [2, 1], [0])
         print "q_img.shape", q_img.shape
         plt.pcolormesh(q_img, cmap=plt.get_cmap("gray"))# , vmin = 0.0, vmax = 1.0)
         
@@ -309,7 +335,7 @@ def rl_experiment(args):
     
     ag = get_agent(args)
     # ag2 = TD0PredictionAgent(ndim_s = 3, ndim_a = 1)
-    ev = GridEnvironment(agents = [ag], num_x = 5, num_y = 5)
+    ev = GridEnvironment(agents = [ag], num_x = args.world_x, num_y = args.world_y)
 
     s = ag.s
     a = ag.a
@@ -352,11 +378,11 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-a",  "--alpha", default=1e-2,  type=float, help="Learning rate \alpha")
-    parser.add_argument("-g",  "--gamma", default=0.9,  type=float, help="Discount factor \gamma")
+    parser.add_argument("-g",  "--gamma", default=0.8,  type=float, help="Discount factor \gamma")
     parser.add_argument("-ne", "--numepisodes", default=500,  type=int, help="Number of episodes")
     parser.add_argument("-ms", "--maxsteps",    default=100, type=int, help="Maximum number of steps per episodes")
     parser.add_argument("-sm", "--sensorimotor_loop", default="td_0_prediction", type=str, help="Which sm loop (Learner), one of " + ", ".join(sensorimotor_loops))
-    parser.add_argument("-p",  "--plotfreq", default=100, type=int, help="Plotting interval in steps")
+    parser.add_argument("-p",  "--plotfreq", default=1000, type=int, help="Plotting interval in steps")
     
     args = parser.parse_args()
     
