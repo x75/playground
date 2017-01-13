@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 # uh oh
-from smp.dimstack import dimensional_stacking
+from dimstack import dimensional_stacking
 
 
 sensorimotor_loops = [
