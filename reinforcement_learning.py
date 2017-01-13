@@ -45,9 +45,9 @@ class GridEnvironment(Environment):
         self.lim_l = np.array([[0], [0]])
         self.lim_u = np.array([[self.num_x-1], [self.num_y-1]])
         # # constant goal
-        # self.goal = np.array([[2], [2]])
+        self.goal = np.array([[4], [1]])
         # random fixed goal
-        self.goal = np.random.uniform([0, 0], [self.num_x, self.num_y], size=(1, 2)).T.astype(int) # 
+        # self.goal = np.random.uniform([0, 0], [self.num_x, self.num_y], size=(1, 2)).T.astype(int) # 
 
         self.reset()
         
@@ -352,8 +352,8 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-a",  "--alpha", default=1e-2,  type=float, help="Learning rate \alpha")
-    parser.add_argument("-g",  "--gamma", default=0,  type=float, help="Discount factor \gamma")
-    parser.add_argument("-ne", "--numepisodes", default=10,  type=int, help="Number of episodes")
+    parser.add_argument("-g",  "--gamma", default=0.9,  type=float, help="Discount factor \gamma")
+    parser.add_argument("-ne", "--numepisodes", default=500,  type=int, help="Number of episodes")
     parser.add_argument("-ms", "--maxsteps",    default=100, type=int, help="Maximum number of steps per episodes")
     parser.add_argument("-sm", "--sensorimotor_loop", default="td_0_prediction", type=str, help="Which sm loop (Learner), one of " + ", ".join(sensorimotor_loops))
     parser.add_argument("-p",  "--plotfreq", default=100, type=int, help="Plotting interval in steps")
