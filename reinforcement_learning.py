@@ -3,6 +3,15 @@ Supplement for Embodied AI lecture 20170112
 
 Some Reinforcement Learning examples
 
+Implementing only Temporal Difference methods so far:
+ - TD(0) prediction
+ - Q-Learning
+ - SARSA
+
+Possible additions
+ - use function approximation for v,q,q_Q,q_SARSA
+ - use state matrix as visual input / compare pg-pong, although that uses policy gradient
+ 
 2017 Oswald Berthold
 """
 
@@ -18,6 +27,13 @@ from mpl_toolkits.axes_grid.parasite_axes import SubplotHost
 # uh oh
 from dimstack import dimensional_stacking
 
+# # from scikit neural networks
+# from sknn.mlp import Regressor, Layer
+
+# using keras
+from keras.layers import Input, Dense
+from keras.models import Model
+from keras.optimizers import RMSprop
 
 sensorimotor_loops = [
     "td_0_prediction",         # TD(0) prediction of v
@@ -51,6 +67,7 @@ class GridEnvironment(Environment):
         # self.goal = np.array([[0], [0]])
         # self.goal = np.array([[0], [2]])
         # self.goal = np.array([[1], [2]])
+        # self.goal = np.array([[4], [4]])
         # random fixed goal
         self.goal = np.random.uniform([0, 0], [self.num_x, self.num_y], size=(1, 2)).T.astype(int) # 
 
@@ -69,7 +86,6 @@ class GridEnvironment(Environment):
             agent.terminal  = False
             agent.terminal_ = 1
         # print self.s # [agent_idx,x,y]
-
         
     def step(self):
         """Actual gridworld mechanics"""
@@ -123,6 +139,13 @@ class GridEnvironment(Environment):
         # decode action
         ag_vel = self.decode_action(a)
         # print "ag_vel = %s" % (ag_vel)
+
+        # # include map with walls / real maze
+        # # print "ag_pos", ag_pos
+        # if ag_pos[0,0] in [2,3,4] and ag_pos[1,0] in [3]:
+        #     # ag_vel = np.clip(ag_vel, )
+        #     ag_vel[1,0] = np.clip(ag_vel[1,0], -np.inf, 0)
+        
         ag_pos_ = np.clip(ag_pos + ag_vel, self.lim_l, self.lim_u)
 
         ag_pos  = ag_pos.flatten()
@@ -195,6 +218,9 @@ class TD0PredictionAgent(Agent):
 
         # type of learner / experiment
         self.sensorimotor_loop = args.sensorimotor_loop
+
+        # type of value functions representation: table, parameterized approximation
+        self.repr = args.repr
         
         # hardcoded gridworld actions
         self.actions = ["nop", "w", "n", "e", "s", "sw", "ne", "nw", "se"]
@@ -207,16 +233,36 @@ class TD0PredictionAgent(Agent):
         self.s_tm1 = self.s.copy()
         
         # estimated state value function v
-        self.v = np.ones((self.ndim_x, self.ndim_y)) * 0.1
+        self.v_tbl = np.ones((self.ndim_x, self.ndim_y)) * 0.1
         # estimated state-action value function q
         q_shape = (self.ndim_x, self.ndim_y, len(self.actions))
-        self.q = np.ones(q_shape) * 0.0 # 2.0
-        # self.q = np.random.uniform(0, 10, q_shape)
-        # self.q = np.arange(np.prod(q_shape)).reshape(q_shape)
-        self.q_Q     = np.ones(q_shape) * 0.0 # 2.0
-        # self.q_Q     = np.random.uniform(0, 0.1, q_shape)
-        # self.q_Q[self.goal[0,0], self.goal[1,0]] = 0.0
-        self.q_SARSA = np.ones(q_shape) * 0.0 # 2.0
+        self.q_tbl = np.ones(q_shape) * 0.0 # 2.0
+        # self.q_tbl = np.random.uniform(0, 10, q_shape)
+        # self.q_tbl = np.arange(np.prod(q_shape)).reshape(q_shape)
+        self.q_Q_tbl     = np.ones(q_shape) * 0.0 # 2.0
+        # self.q_Q_tbl     = np.random.uniform(0, 0.1, q_shape)
+        # self.q_Q_tbl[self.goal[0,0], self.goal[1,0]] = 0.0
+        self.q_SARSA_tbl = np.ones(q_shape) * 0.0 # 2.0
+
+        if self.repr == "table":
+            self.v       = self.v_tbl_predict
+            self.q       = self.q_tbl_predict
+            self.q_Q     = self.q_Q_tbl_predict
+            self.q_SARSA = self.q_SARSA_tbl_predict
+            self.v_update       = self.v_tbl_update
+            self.q_update       = self.q_tbl_update
+            self.q_Q_update     = self.q_Q_tbl_update
+            self.q_SARSA_update = self.q_SARSA_tbl_update
+        elif self.repr == "approximation":
+            self.init_fa()
+            self.v       = self.v_fa_predict
+            self.q       = self.q_fa_predict
+            self.q_Q     = self.q_Q_fa_predict
+            self.q_SARSA = self.q_SARSA_fa_predict
+            self.v_update       = self.v_fa_update
+            self.q_update       = self.q_fa_update
+            self.q_Q_update     = self.q_Q_fa_update
+            self.q_SARSA_update = self.q_SARSA_fa_update
 
         # set pplicy according to learner
         print "self.sensorimotor_loop", self.sensorimotor_loop
@@ -231,6 +277,177 @@ class TD0PredictionAgent(Agent):
             print "Unknown learner %s, exiting" % (self.sensorimotor_loop)
             sys.exit(1)
 
+    def init_fa(self):
+        
+        # this returns a tensor
+        inputs = Input(shape=(2,))
+        # a layer instance is callable on a tensor, and returns a tensor
+        x = Dense(20, activation='relu')(inputs)
+        x = Dense(10, activation='relu')(x)
+        predictions = Dense(1, activation='linear')(x)
+
+        # this creates a model that includes
+        # the Input layer and three Dense layers
+        opt_v_fa = RMSprop(lr = 1e-4)
+        self.v_fa = Model(input=inputs, output=predictions)
+        self.v_fa.compile(optimizer=opt_v_fa, loss='mse')
+
+        # this returns a tensor
+        inputs = Input(shape=(3,))
+        # a layer instance is callable on a tensor, and returns a tensor
+        x = Dense(20, activation='relu')(inputs)
+        x = Dense(10, activation='relu')(x)
+        predictions = Dense(1, activation='linear')(x)
+
+        # this creates a model that includes
+        # the Input layer and three Dense layers
+        opt_q_fa = RMSprop(lr = 1e-4)
+        self.q_fa = Model(input=inputs, output=predictions)
+        self.q_fa.compile(optimizer=opt_q_fa, loss='mse')
+        
+        # this returns a tensor
+        inputs = Input(shape=(3,))
+        # a layer instance is callable on a tensor, and returns a tensor
+        x = Dense(20, activation='relu')(inputs)
+        x = Dense(10, activation='relu')(x)
+        predictions = Dense(1, activation='linear')(x)
+
+        # this creates a model that includes
+        # the Input layer and three Dense layers
+        opt_q_Q_fa = RMSprop(lr = 1e-4)
+        self.q_Q_fa = Model(input=inputs, output=predictions)
+        self.q_Q_fa.compile(optimizer=opt_q_Q_fa, loss='mse')
+        
+        # this returns a tensor
+        inputs = Input(shape=(3,))
+        # a layer instance is callable on a tensor, and returns a tensor
+        x = Dense(20, activation='relu')(inputs)
+        x = Dense(10, activation='relu')(x)
+        predictions = Dense(1, activation='linear')(x)
+
+        # this creates a model that includes
+        # the Input layer and three Dense layers
+        opt_q_SARSA_fa = RMSprop(lr = 1e-4)
+        self.q_SARSA_fa = Model(input=inputs, output=predictions)
+        self.q_SARSA_fa.compile(optimizer=opt_q_SARSA_fa, loss='mse')
+        
+    def v_fa_predict(self, s):
+        return self.v_fa.predict(s[:2,0].reshape((1,2)))
+        
+    def v_fa_update(self, s):
+        # print "s", s
+        v_fa = self.v(s)
+        x = self.s_tm1[:2,0].reshape((1,2))
+        y = s[2,0] + self.gamma * v_fa
+        self.v_fa.train_on_batch(x, y)  # starts training
+        
+    def q_fa_predict(self, s, a):
+        x = np.vstack((s[:2,0].reshape((2,1)), a))
+        return self.q_fa.predict(x.T)
+        
+    def q_fa_update(self, s, a):
+        # print "s", s
+        q_fa = self.q(s, a)
+        x = np.vstack((self.s_tm1[:2,0].reshape((2,1)), self.a_tm1)).T
+        y = s[2,0] + self.gamma * q_fa
+        self.q_fa.train_on_batch(x, y)  # starts training
+        
+    def q_Q_fa_predict(self, s):
+        x = np.vstack((s[:2,0], a))
+        return self.q_Q_fa.predict(x.T)
+        
+    def q_Q_fa_update(self, s, a):
+        # print "s", s
+        q_fa = self.q(s, a)
+        x = np.vstack((self.s_tm1[:2,0].reshape((2,1)), self.a_tm1)).T
+        y = s[2,0] + self.gamma * q_fa
+        self.q_fa.train_on_batch(x, y)  # starts training
+        
+    def q_SARSA_fa_predict(self, s):
+        x = np.vstack((s[:2,0], a))
+        return self.q_SARSA_fa.predict(x.T)
+        
+    def q_SARSA_fa_update(self, s, a):
+        # print "s", s
+        q_fa = self.q(s, a)
+        x = np.vstack((self.s_tm1[:2,0].reshape((2,1)), self.a_tm1)).T
+        y = s[2,0] + self.gamma * q_fa
+        self.q_fa.train_on_batch(x, y)  # starts training
+
+    ################################################################################
+
+    def update_get_indices(self, s, s_tm1, a_tm1):
+        l_x = int(s[0,0])
+        l_y = int(s[1,0])
+        l_x_tm1 = int(s_tm1[0,0])
+        l_y_tm1 = int(s_tm1[1,0])
+        l_a_tm1   = int(a_tm1[0,0])
+        return (l_x, l_y, l_x_tm1, l_y_tm1, l_a_tm1)
+    
+    def v_tbl_predict(self, s):
+        l_x = int(s[0,0])
+        l_y = int(s[1,0])
+        return self.v_tbl[l_x, l_y]
+
+    def q_tbl_predict(self, s, a):
+        l_x = int(s[0,0])
+        l_y = int(s[1,0])
+        l_a = int(a[0,0])
+        return self.q_tbl[l_x, l_y, l_a]
+
+    def q_Q_tbl_predict(self, s, a):
+        l_x = int(s[0,0])
+        l_y = int(s[1,0])
+        l_a = int(a[0,0])
+        return self.q_tbl[l_x, l_y, l_a]
+
+    def q_SARSA_tbl_predict(self, s, a):
+        l_x = int(s[0,0])
+        l_y = int(s[1,0])
+        l_a = int(a[0,0])
+        return self.q_tbl[l_x, l_y, l_a]
+        
+    def v_tbl_update(self, s):
+        l_x, l_y, l_x_tm1, l_y_tm1, l_a_tm1 = self.update_get_indices(s, self.s_tm1, self.a_tm1)
+        
+        # back up old state value once
+        # self.v_tbl_s_tm1 = self.v_tbl[l_x_tm1, l_y_tm1].copy()
+        self.v_tbl_s_tm1 = self.v(self.s_tm1).copy()
+        # perform update, SB2nded pg. ?, eq. ?
+        # self.v_tbl[l_x_tm1, l_y_tm1] = self.v_tbl_s_tm1 + self.alpha * 0.1 * (s[2,0] + self.gamma * self.v_tbl[l_x, l_y] - self.v_tbl_s_tm1)
+        self.v_tbl[l_x_tm1, l_y_tm1] = self.v_tbl_s_tm1 + self.alpha * 0.1 * (s[2,0] + self.gamma * self.v(s) - self.v_tbl_s_tm1)
+
+    def q_tbl_update(self, s, a):
+        l_x, l_y, l_x_tm1, l_y_tm1, l_a_tm1 = self.update_get_indices(s, self.s_tm1, self.a_tm1)
+        
+        # back up old state-action value once
+        # self.q_tbl_sa_tm1 = self.q_tbl[l_x_tm1, l_y_tm1, l_a_tm1].copy()
+        self.q_tbl_sa_tm1 = self.q(self.s_tm1, self.a_tm1).copy()
+        # perform update, SB2nded pg. ?, eq. ?
+        # self.q_tbl[l_x_tm1, l_y_tm1, l_a_tm1] = self.q_tbl_sa_tm1 + self.alpha * (self.s[2,0] + self.gamma * self.q_tbl[l_x, l_y, l_a_tm1] - self.q_tbl_sa_tm1)
+        self.q_tbl[l_x_tm1, l_y_tm1, l_a_tm1] = self.q_tbl_sa_tm1 + self.alpha * (self.s[2,0] + self.gamma * self.q(s, self.a_tm1) - self.q_tbl_sa_tm1)
+
+    def q_Q_tbl_update(self, s, a):
+        l_x, l_y, l_x_tm1, l_y_tm1, l_a_tm1 = self.update_get_indices(s, self.s_tm1, self.a_tm1)
+        
+        # back up old state-action value once Q-Learning
+        # self.q_Q_tbl_tm1 = self.q_Q_tbl[l_x_tm1, l_y_tm1, l_a_tm1].copy()
+        self.q_Q_tbl_tm1 = self.q_Q(self.s_tm1, self.a_tm1).copy()
+        # perform update, SB2nded pg. ?, eq. ?
+        # print "q_Q update max(Q_q(S, a))", np.max(self.q_Q_tbl[l_x, l_y, l_a_tm1])
+        # print "self.q_Q_tbl[l_x, l_y, l_a_tm1]", self.q_Q_tbl[l_x, l_y, :]
+        self.q_Q_tbl[l_x_tm1, l_y_tm1, l_a_tm1] = self.q_Q_tbl_tm1 + self.alpha * (self.s[2,0] + self.gamma * np.max(self.q_Q_tbl[l_x, l_y, :]) - self.q_Q_tbl_tm1)
+        # self.q_Q_tbl[l_x_tm1, l_y_tm1, l_a_tm1] = self.q_Q_tbl_tm1 + self.alpha * (self.s[2,0] + self.gamma * np.max(self.q_Q_tbl[l_x, l_y, l_a_tm1]) - self.q_Q_tbl_tm1)
+    def q_SARSA_tbl_update(self, s, a):
+        l_x, l_y, l_x_tm1, l_y_tm1, l_a_tm1 = self.update_get_indices(s, self.s_tm1, self.a_tm1)
+        
+        # back up old state-action value once Q-Learning
+        # self.q_SARSA_tbl_tm1 = self.q_SARSA_tbl[l_x_tm1, l_y_tm1, l_a_tm1].copy()
+        self.q_SARSA_tbl_tm1 = self.q_SARSA(self.s_tm1, self.a_tm1).copy()
+        # perform update, SB2nded pg. ?, eq. ?
+        # self.q_SARSA_tbl[l_x_tm1, l_y_tm1, l_a_tm1] = self.q_SARSA_tbl_tm1 + self.alpha * (self.s[2,0] + (self.gamma * self.q_SARSA_tbl[l_x, l_y, self.a]) - self.q_SARSA_tbl_tm1)
+        self.q_SARSA_tbl[l_x_tm1, l_y_tm1, l_a_tm1] = self.q_SARSA_tbl_tm1 + self.alpha * (self.s[2,0] + (self.gamma * self.q_SARSA(s, a)) - self.q_SARSA_tbl_tm1)
+                
     # policies
     def policy(self, q, s, epsilon = 0.0):
         return self.policy_func(q, s)
@@ -268,39 +485,31 @@ class TD0PredictionAgent(Agent):
         # print "l", l_x, l_y, "l_tm1", l_x_tm1, l_y_tm1
                 
         # update v
-        # print "v", l_x, l_y, self.v[l_x, l_y]
-        
-        # back up old state value once
-        self.v_s_tm1 = self.v[l_x_tm1, l_y_tm1].copy()
-        # perform update, SB2nded pg. ?, eq. ?
-        self.v[l_x_tm1, l_y_tm1] = self.v_s_tm1 + self.alpha * 0.1 * (self.s[2,0] + self.gamma * self.v[l_x, l_y] - self.v_s_tm1)
+        # print "v", l_x, l_y, self.v_tbl[l_x, l_y]
 
-        # back up old state-action value once
-        self.q_sa_tm1 = self.q[l_x_tm1, l_y_tm1, l_a_tm1].copy()
-        # perform update, SB2nded pg. ?, eq. ?
-        self.q[l_x_tm1, l_y_tm1, l_a_tm1] = self.q_sa_tm1 + self.alpha * (self.s[2,0] + self.gamma * self.q[l_x, l_y, l_a_tm1] - self.q_sa_tm1)
+        # update value functions
+        # v
+        self.v_update(self.s)
+
+        # q with td0 update
+        self.q_update(self.s, self.a)
                 
-        # back up old state-action value once Q-Learning
-        self.q_Q_tm1 = self.q_Q[l_x_tm1, l_y_tm1, l_a_tm1].copy()
-        # perform update, SB2nded pg. ?, eq. ?
-        # print "q_Q update max(Q_q(S, a))", np.max(self.q_Q[l_x, l_y, l_a_tm1])
-        self.q_Q[l_x_tm1, l_y_tm1, l_a_tm1] = self.q_Q_tm1 + self.alpha * (self.s[2,0] + self.gamma * np.max(self.q_Q[l_x, l_y, l_a_tm1]) - self.q_Q_tm1)
-
+        # q with Q update
+        self.q_Q_update(self.s, self.a)
+        
         # policy: some functional thing that produces an action
         if self.sensorimotor_loop == "td_0_prediction":
-            self.a = self.policy(self.q, self.s)
+            self.a = self.policy(self.q_tbl, self.s)
         elif self.sensorimotor_loop == "td_0_off_policy_control":
             # back up old q_Q for off policy foo
-            self.a = self.policy(self.q_Q, self.s, epsilon = self.epsilon)
+            self.a = self.policy(self.q_Q_tbl, self.s, epsilon = self.epsilon)
         elif self.sensorimotor_loop == "td_0_on_policy_control":
-            self.a = self.policy(self.q_SARSA, self.s, epsilon = self.epsilon)
+            self.a = self.policy(self.q_SARSA_tbl, self.s, epsilon = self.epsilon)
         # print self.a
         
-        # back up old state-action value once Q-Learning
-        self.q_SARSA_tm1 = self.q_SARSA[l_x_tm1, l_y_tm1, l_a_tm1].copy()
-        # perform update, SB2nded pg. ?, eq. ?
-        self.q_SARSA[l_x_tm1, l_y_tm1, l_a_tm1] = self.q_SARSA_tm1 + self.alpha * (self.s[2,0] + (self.gamma * self.q_SARSA[l_x, l_y, self.a]) - self.q_SARSA_tm1)
-
+        # q with sarsa update
+        self.q_SARSA_update(self.s, self.a)
+        
         # back up state
         self.s_tm1 = self.s.copy()
         # back up action
@@ -308,72 +517,6 @@ class TD0PredictionAgent(Agent):
         self.t += 1
         return self.a
 
-# class TD0OffPolicyControlAgent(TD0PredictionAgent):
-#     def __init__(self, ndim_s = 3, ndim_a = 1, ndim_x = 3, ndim_y = 3, alpha = 1e-3, gamma = 0.0):
-#         TD0PredictionAgent.__init__(self, ndim_s = ndim_s, ndim_a = ndim_a, ndim_x = ndim_x, ndim_y = ndim_y, alpha = alpha, gamma = gamma)
-#         q_shape = (self.ndim_x, self.ndim_y, len(self.actions))
-#         # Q update
-#         self.q_Q     = np.ones(q_shape) * 2.0
-#         # self.q_Q     = np.random.uniform(0, 0.1, q_shape)
-#         # self.q_Q[self.goal[0,0], self.goal[1,0]] = 0.0
-#         self.q_SARSA = np.ones(q_shape) * 2.0
-#         # self.q_SARSA[self.goal[0,0], self.goal[1,0]] = 0.0
-
-#     def step(self, s):
-#         # stop episode
-#         if self.terminal:
-#             self.terminal_ -= 1
-            
-#         # sensory measurement: [x, y, reward].T
-#         self.s = s.copy()
-#         # print "%s.step s = %s" % (self.__class__.__name__, self.s)
-
-#         # current state
-#         l_x = int(self.s[0,0])
-#         l_y = int(self.s[1,0])
-#         # last state
-#         l_x_tm1 = int(self.s_tm1[0,0])
-#         l_y_tm1 = int(self.s_tm1[1,0])
-#         l_a_tm1   = self.a_tm1[0,0]
-#         # print "l", l_x, l_y, "l_tm1", l_x_tm1, l_y_tm1
-                
-#         # update v
-#         # print "v", l_x, l_y, self.v[l_x, l_y]
-        
-#         # back up old state value once
-#         self.v_s_tm1 = self.v[l_x_tm1, l_y_tm1].copy()
-#         # perform update, SB2nded pg. ?, eq. ?
-#         self.v[l_x_tm1, l_y_tm1] = self.v_s_tm1 + self.alpha * (self.s[2,0] + self.gamma * self.v[l_x, l_y] - self.v_s_tm1)
-
-#         # back up old state-action value once
-#         self.q_sa_tm1 = self.q[l_x_tm1, l_y_tm1, l_a_tm1].copy()
-#         # perform update, SB2nded pg. ?, eq. ?
-#         self.q[l_x_tm1, l_y_tm1, l_a_tm1] = self.q_sa_tm1 + self.alpha * (self.s[2,0] + self.gamma * self.q[l_x, l_y, l_a_tm1] - self.q_sa_tm1)
-
-#         # back up old state-action value once Q-Learning
-#         self.q_Q_tm1 = self.q_Q[l_x_tm1, l_y_tm1, l_a_tm1].copy()
-#         # perform update, SB2nded pg. ?, eq. ?
-#         self.q_Q[l_x_tm1, l_y_tm1, l_a_tm1] = self.q_Q_tm1 + self.alpha * (self.s[2,0] + self.gamma * np.max(self.q_Q[l_x, l_y, l_a_tm1]) - self.q_Q_tm1)
-
-#         # policy: some functional thing that produces an action
-#         # self.a = self.policy(self.q_Q, self.s)
-#         self.a = self.policy(self.q_SARSA, self.s)
-#         # print self.a
-        
-#         # back up old state-action value once Q-Learning
-#         self.q_SARSA_tm1 = self.q_SARSA[l_x_tm1, l_y_tm1, l_a_tm1].copy()
-#         # perform update, SB2nded pg. ?, eq. ?
-#         self.q_SARSA[l_x_tm1, l_y_tm1, l_a_tm1] = self.q_SARSA_tm1 + self.alpha * (self.s[2,0] + (self.gamma * self.q_SARSA[l_x, l_y, self.a]) - self.q_SARSA_tm1)
-                                
-
-#         # back up state
-#         self.s_tm1 = self.s.copy()
-#         # back up action
-#         self.a_tm1 = self.a.copy()
-#         self.t += 1
-#         return self.a
-                
-        
 ################################################################################
 # operations
     
@@ -453,7 +596,7 @@ def plot_draw_ev(fig, gs, axs, ev):
         ax_s.clear()
 
         # plot state
-        # print "ev.s[i].shape", ev.s[i].shape, a.v.shape, a.q.shape
+        # print "ev.s[i].shape", ev.s[i].shape, a.v_tbl.shape, a.q_tbl.shape
         ax_s.pcolormesh(ev.s[i].T, cmap=plt.get_cmap("gray"))
         # ax_s.pcolormesh(ev.s[i][::-1], cmap=plt.get_cmap("gray"))
         ax_s.plot([ev.goal[0,0] + 0.5], [ev.goal[1,0] + 0.5], "ro", markersize = 20, alpha= 0.5)
@@ -462,12 +605,27 @@ def plot_draw_ev(fig, gs, axs, ev):
         ax_s.set_ylabel("y")
         ax_s.set_aspect(1)
 
+        # meshgrid
+        v_img = np.zeros((ev.num_x, ev.num_y))
+        for k in range(ev.num_x):
+            for l in range(ev.num_y):
+                v_img[k,l] = a.v(np.array([[k, l, 0]]).T)
+        v_img = v_img.T
+        print "v_img", v_img
+
+        q_img = np.zeros((ev.num_x, ev.num_y, 9))
+        for k in range(ev.num_x):
+            for l in range(ev.num_y):
+                for m in range(9):
+                    q_img[k,l,m] = a.v(np.array([[k, l, m]]).T)
+        q_img_full = q_img.copy()
+        print "q_img_full", q_img_full
         
         # plot state value
         ax_v = axs[i][1]
         ax_v.clear()
-        # v_img = np.log(ev.agents[i].v + 1.0)
-        v_img = ev.agents[i].v.T
+        # v_img = np.log(ev.agents[i].v_tbl + 1.0)
+        # v_img = ev.agents[i].v_tbl.T
         ax_v.pcolormesh(v_img, cmap=plt.get_cmap("gray"), vmin = 0.0) # , vmax = 1.0)
         ax_v.set_title("Agent %d state value v(s)" % i, fontsize = 8)
         ax_v.set_xlabel("x")
@@ -478,7 +636,8 @@ def plot_draw_ev(fig, gs, axs, ev):
         ax_q = axs[i][2]
         ax_q.clear()
         ax_q.set_title("Q_{TD(0)", fontsize=8)
-        q_img = dimensional_stacking(np.transpose(ev.agents[i].q, [1, 0, 2]), [2, 1], [0])
+        # q_img_full = ev.agents[i].q_tbl
+        q_img = dimensional_stacking(np.transpose(q_img_full, [1, 0, 2]), [2, 1], [0])
         # print "q_img.shape", q_img.shape
         ax_q.pcolormesh(q_img, cmap=plt.get_cmap("gray"), vmin = 0.0, vmax = 2.0)
         ax_q.set_title("Agent %d state-action value q(s,a)" % i, fontsize = 8)
@@ -505,9 +664,9 @@ def plot_draw_ev(fig, gs, axs, ev):
         # plot state-action value
         ax_q_Q = axs[i][3]
         ax_q_Q.clear()
-        ax_q_Q.set_title("Q_{Q}, min = %f, max = %f" % (np.min(ev.agents[i].q_Q), np.max(ev.agents[i].q_Q)), fontsize=8)
-        q_img_Q = dimensional_stacking(np.transpose(ev.agents[i].q_Q, [1, 0, 2]), [2, 1], [0])
-        # q_img = dimensional_stacking(ev.agents[i].q_SARSA, [2, 1], [0])
+        ax_q_Q.set_title("Q_{Q}, min = %f, max = %f" % (np.min(ev.agents[i].q_Q_tbl), np.max(ev.agents[i].q_Q_tbl)), fontsize=8)
+        q_img_Q = dimensional_stacking(np.transpose(ev.agents[i].q_Q_tbl, [1, 0, 2]), [2, 1], [0])
+        # q_img = dimensional_stacking(ev.agents[i].q_SARSA_tbl, [2, 1], [0])
         # print "q_img.shape", q_img.shape
         ax_q_Q.pcolormesh(q_img_Q, cmap=plt.get_cmap("gray"), vmin = 0.0) #, vmax = 2.0)
         ax_q_Q.set_aspect(1)
@@ -516,8 +675,8 @@ def plot_draw_ev(fig, gs, axs, ev):
         # plot state-action value
         ax_q_SARSA = axs[i][4]
         ax_q_SARSA.clear()
-        ax_q_SARSA.set_title("Q_{SARSA} min = %f, max = %f" % (np.min(ev.agents[i].q_SARSA), np.max(ev.agents[i].q_SARSA)), fontsize=8)
-        q_img_SARSA = dimensional_stacking(np.transpose(ev.agents[i].q_SARSA, [1, 0, 2]), [2, 1], [0])
+        ax_q_SARSA.set_title("Q_{SARSA} min = %f, max = %f" % (np.min(ev.agents[i].q_SARSA_tbl), np.max(ev.agents[i].q_SARSA_tbl)), fontsize=8)
+        q_img_SARSA = dimensional_stacking(np.transpose(ev.agents[i].q_SARSA_tbl, [1, 0, 2]), [2, 1], [0])
         # print "q_img.shape", q_img.shape
         mpabl = ax_q_SARSA.pcolormesh(q_img_SARSA, cmap=plt.get_cmap("gray"), vmin = 0.0, vmax = 5.0)
         ax_q_SARSA.set_aspect(1)
@@ -569,11 +728,11 @@ def rl_experiment(args):
     ag = get_agent(args)
     # ag2 = TD0PredictionAgent(ndim_s = 3, ndim_a = 1)
     ev = GridEnvironment(agents = [ag], num_x = args.world_x, num_y = args.world_y)
-    # ag.q_Q[ev.goal[0,0], ev.goal[1,0],:] = 0.1
-    # ag.q_SARSA[ev.goal[0,0], ev.goal[1,0],:] = 0.0
+    # ag.q_Q_tbl[ev.goal[0,0], ev.goal[1,0],:] = 0.1
+    # ag.q_SARSA_tbl[ev.goal[0,0], ev.goal[1,0],:] = 0.0
 
-    s = ag.s
-    a = ag.a
+    # s = ag.s
+    # a = ag.a
 
     fig, gs, axs = plot_init(ev)
     
@@ -593,6 +752,7 @@ def rl_experiment(args):
             # print "td_0_prediction a[t = %d] = %s, s[t = %d] = %s" % (t, a, t, s)
             if (i * args.maxsteps + t) % args.plotfreq == 0:
                 print "plotting at step %d" % (i * args.maxsteps + t)
+                # FIXME: if approx generate table from fa
                 plot_draw_ev(fig, gs, axs, ev)
             terminal = np.all(np.array([agent.terminal_ < 1 for agent in ev.agents]))
             t += 1
@@ -603,8 +763,8 @@ def rl_experiment(args):
 
     # save result
     for i, agent in enumerate(ev.agents):
-        np.save("td0_ag%d_v.npy" % i, agent.v)
-        np.save("td0_ag%d_q.npy" % i, agent.q)
+        np.save("td0_ag%d_v.npy" % i, agent.v_tbl)
+        np.save("td0_ag%d_q.npy" % i, agent.q_tbl)
 
     plt.ioff()
     plt.show()
@@ -620,7 +780,8 @@ if __name__ == "__main__":
     parser.add_argument("-ne", "--numepisodes", default=500,  type=int, help="Number of episodes [500]")
     parser.add_argument("-ms", "--maxsteps",    default=100, type=int, help="Maximum number of steps per episodes [100]")
     parser.add_argument("-sm", "--sensorimotor_loop", default="td_0_prediction", type=str, help="Which sm loop (Learner), one of " + ", ".join(sensorimotor_loops) + " [td_0_prediction]")
-    parser.add_argument("-p",  "--plotfreq", default=1000, type=int, help="Plotting interval in steps [1000]")
+    parser.add_argument("-p",  "--plotfreq", default=1000,    type=int, help="Plotting interval in steps [1000]")
+    parser.add_argument("-r",  "--repr",     default="table", type=str, help="Value function representation [table]")
     parser.add_argument("-wx",  "--world_x", default=5, type=int, help="Size of world along x [5]")
     parser.add_argument("-wy",  "--world_y", default=5, type=int, help="Size of world along y [5]")
     
