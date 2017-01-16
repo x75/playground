@@ -157,7 +157,7 @@ class GridEnvironment(Environment):
         elif a[0,0] == 8: # northwest
             vel = [1, -1]
         return np.array([vel]).T
-
+    
 class Agent(object):
     def __init__(self, ndim_s = 2, ndim_a = 1):
         self.ndim_a = ndim_a
@@ -205,7 +205,32 @@ class TD0PredictionAgent(Agent):
         self.q = np.ones(q_shape) * 2.0
         # self.q = np.random.uniform(0, 10, q_shape)
         # self.q = np.arange(np.prod(q_shape)).reshape(q_shape)
+        self.q_Q     = np.ones(q_shape) * 2.0
+        # self.q_Q     = np.random.uniform(0, 0.1, q_shape)
+        # self.q_Q[self.goal[0,0], self.goal[1,0]] = 0.0
+        self.q_SARSA = np.ones(q_shape) * 2.0
 
+        # self.policy_func = self.policy_random
+        self.policy_func = self.policy_epsilon_greedy
+
+    # policies
+    def policy(self, q, s):
+        return self.policy_func(q, s)
+        
+    def policy_random(self, q, s):
+        return np.random.randint(len(self.actions), size=self.a.shape)
+
+    def policy_epsilon_greedy(self, q, s, epsilon = 0.05):
+        if np.random.uniform() < epsilon:
+            return self.policy_random(q, s)
+        else:
+            # get best action according to current q estimate
+            q_s = q[s[0,0], s[1,0]]
+            # print "%s.policy_epsilon_greedy q_s = %s" % (self.__class__.__name__, q_s)
+            a_s = np.argmax(q_s).reshape(self.a.shape)
+            # print "%s.policy_epsilon_greedy a_s = %s" % (self.__class__.__name__, a_s)
+            return a_s
+        
     def step(self, s):
         # stop episode
         if self.terminal:
@@ -237,9 +262,20 @@ class TD0PredictionAgent(Agent):
         # perform update, SB2nded pg. ?, eq. ?
         self.q[l_x_tm1, l_y_tm1, l_a_tm1] = self.q_sa_tm1 + self.alpha * (self.s[2,0] + self.gamma * self.q[l_x, l_y, l_a_tm1] - self.q_sa_tm1)
                 
+        # back up old state-action value once Q-Learning
+        self.q_Q_tm1 = self.q_Q[l_x_tm1, l_y_tm1, l_a_tm1].copy()
+        # perform update, SB2nded pg. ?, eq. ?
+        self.q_Q[l_x_tm1, l_y_tm1, l_a_tm1] = self.q_Q_tm1 + self.alpha * (self.s[2,0] + self.gamma * np.max(self.q_Q[l_x, l_y, l_a_tm1]) - self.q_Q_tm1)
+
         # policy: some functional thing that produces an action
-        self.a = np.random.randint(len(self.actions), size=self.a.shape)
+        # self.a = self.policy(self.q_Q, self.s)
+        self.a = self.policy(self.q_SARSA, self.s)
         # print self.a
+        
+        # back up old state-action value once Q-Learning
+        self.q_SARSA_tm1 = self.q_SARSA[l_x_tm1, l_y_tm1, l_a_tm1].copy()
+        # perform update, SB2nded pg. ?, eq. ?
+        self.q_SARSA[l_x_tm1, l_y_tm1, l_a_tm1] = self.q_SARSA_tm1 + self.alpha * (self.s[2,0] + (self.gamma * self.q_SARSA[l_x, l_y, self.a]) - self.q_SARSA_tm1)
 
         # back up state
         self.s_tm1 = self.s.copy()
@@ -248,6 +284,72 @@ class TD0PredictionAgent(Agent):
         self.t += 1
         return self.a
 
+# class TD0OffPolicyControlAgent(TD0PredictionAgent):
+#     def __init__(self, ndim_s = 3, ndim_a = 1, ndim_x = 3, ndim_y = 3, alpha = 1e-3, gamma = 0.0):
+#         TD0PredictionAgent.__init__(self, ndim_s = ndim_s, ndim_a = ndim_a, ndim_x = ndim_x, ndim_y = ndim_y, alpha = alpha, gamma = gamma)
+#         q_shape = (self.ndim_x, self.ndim_y, len(self.actions))
+#         # Q update
+#         self.q_Q     = np.ones(q_shape) * 2.0
+#         # self.q_Q     = np.random.uniform(0, 0.1, q_shape)
+#         # self.q_Q[self.goal[0,0], self.goal[1,0]] = 0.0
+#         self.q_SARSA = np.ones(q_shape) * 2.0
+#         # self.q_SARSA[self.goal[0,0], self.goal[1,0]] = 0.0
+
+#     def step(self, s):
+#         # stop episode
+#         if self.terminal:
+#             self.terminal_ -= 1
+            
+#         # sensory measurement: [x, y, reward].T
+#         self.s = s.copy()
+#         # print "%s.step s = %s" % (self.__class__.__name__, self.s)
+
+#         # current state
+#         l_x = int(self.s[0,0])
+#         l_y = int(self.s[1,0])
+#         # last state
+#         l_x_tm1 = int(self.s_tm1[0,0])
+#         l_y_tm1 = int(self.s_tm1[1,0])
+#         l_a_tm1   = self.a_tm1[0,0]
+#         # print "l", l_x, l_y, "l_tm1", l_x_tm1, l_y_tm1
+                
+#         # update v
+#         # print "v", l_x, l_y, self.v[l_x, l_y]
+        
+#         # back up old state value once
+#         self.v_s_tm1 = self.v[l_x_tm1, l_y_tm1].copy()
+#         # perform update, SB2nded pg. ?, eq. ?
+#         self.v[l_x_tm1, l_y_tm1] = self.v_s_tm1 + self.alpha * (self.s[2,0] + self.gamma * self.v[l_x, l_y] - self.v_s_tm1)
+
+#         # back up old state-action value once
+#         self.q_sa_tm1 = self.q[l_x_tm1, l_y_tm1, l_a_tm1].copy()
+#         # perform update, SB2nded pg. ?, eq. ?
+#         self.q[l_x_tm1, l_y_tm1, l_a_tm1] = self.q_sa_tm1 + self.alpha * (self.s[2,0] + self.gamma * self.q[l_x, l_y, l_a_tm1] - self.q_sa_tm1)
+
+#         # back up old state-action value once Q-Learning
+#         self.q_Q_tm1 = self.q_Q[l_x_tm1, l_y_tm1, l_a_tm1].copy()
+#         # perform update, SB2nded pg. ?, eq. ?
+#         self.q_Q[l_x_tm1, l_y_tm1, l_a_tm1] = self.q_Q_tm1 + self.alpha * (self.s[2,0] + self.gamma * np.max(self.q_Q[l_x, l_y, l_a_tm1]) - self.q_Q_tm1)
+
+#         # policy: some functional thing that produces an action
+#         # self.a = self.policy(self.q_Q, self.s)
+#         self.a = self.policy(self.q_SARSA, self.s)
+#         # print self.a
+        
+#         # back up old state-action value once Q-Learning
+#         self.q_SARSA_tm1 = self.q_SARSA[l_x_tm1, l_y_tm1, l_a_tm1].copy()
+#         # perform update, SB2nded pg. ?, eq. ?
+#         self.q_SARSA[l_x_tm1, l_y_tm1, l_a_tm1] = self.q_SARSA_tm1 + self.alpha * (self.s[2,0] + (self.gamma * self.q_SARSA[l_x, l_y, self.a]) - self.q_SARSA_tm1)
+                                
+
+#         # back up state
+#         self.s_tm1 = self.s.copy()
+#         # back up action
+#         self.a_tm1 = self.a.copy()
+#         self.t += 1
+#         return self.a
+                
+        
 ################################################################################
 # operations
     
@@ -256,16 +358,18 @@ def plot_init(ev):
     fig = plt.figure()
     fig.suptitle("TD(0) prediction learning for v and q")
     gs_numcol = 1 + 1 # 1 + 1 + 4 # 3
-    gs = gridspec.GridSpec(len(ev.agents) * 2, gs_numcol)
+    gs = gridspec.GridSpec(len(ev.agents) * 4, gs_numcol)
     axs = []
     for i, a in enumerate(ev.agents):
         axs.append([
             # fig.add_subplot(gs[gs_numcol*i]),
             # fig.add_subplot(gs[gs_numcol*i+1]),
             # fig.add_subplot(gs[gs_numcol*i+2:])
-            fig.add_subplot(gs[i*2+1,0]),
-            fig.add_subplot(gs[i*2+1,1]),
-            fig.add_subplot(gs[i*2,:])
+            fig.add_subplot(gs[i*2+3,0]),
+            fig.add_subplot(gs[i*2+3,1]),
+            fig.add_subplot(gs[i*2,:]),
+            fig.add_subplot(gs[i*2+1,:]),
+            fig.add_subplot(gs[i*2+2,:]),
             ])
         axs[-1][0].set_title("Agent %d state (position on grid)" % i, fontsize=8)
         axs[-1][0].set_xlabel("x")
@@ -281,6 +385,8 @@ def plot_init(ev):
         # axs[-1][2].set_aspect((len(a.actions)*ev.num_x)/float(ev.num_y))
         # axs[-1][2].set_aspect((len(a.actions)*ev.num_x)/float(ev.num_y))
         axs[-1][2].set_aspect(1)
+        axs[-1][3].set_aspect(1)
+        axs[-1][4].set_aspect(1)
     return fig, gs, axs
 
 def plot_pcolor_coordinates():
@@ -304,29 +410,48 @@ def plot_draw_ev(fig, gs, axs, ev):
 
         # plot state value
         ax_v = axs[i][1]
+        ax_v.clear()
         # v_img = np.log(ev.agents[i].v + 1.0)
         v_img = ev.agents[i].v.T
         ax_v.pcolormesh(v_img, cmap=plt.get_cmap("gray"), vmin = 0.0) # , vmax = 1.0)
 
         # plot state-action value
         ax_q = axs[i][2]
+        ax_q.clear()
         q_img = dimensional_stacking(ev.agents[i].q, [2, 1], [0])
+        # q_img = dimensional_stacking(ev.agents[i].q_Q, [2, 1], [0])
+        # q_img = dimensional_stacking(ev.agents[i].q_SARSA, [2, 1], [0])
         # print "q_img.shape", q_img.shape
-        plt.pcolormesh(q_img, cmap=plt.get_cmap("gray"))# , vmin = 0.0, vmax = 1.0)
-        
+        ax_q.pcolormesh(q_img, cmap=plt.get_cmap("gray"), vmin = 0.0, vmax = 2.0)
+
+        # plot state-action value
+        ax_q_Q = axs[i][3]
+        ax_q_Q.clear()
+        q_img_Q = dimensional_stacking(ev.agents[i].q_Q, [2, 1], [0])
+        # q_img = dimensional_stacking(ev.agents[i].q_SARSA, [2, 1], [0])
+        # print "q_img.shape", q_img.shape
+        ax_q_Q.pcolormesh(q_img_Q, cmap=plt.get_cmap("gray"), vmin = 0.0, vmax = 2.0)
+
+        # plot state-action value
+        ax_q_SARSA = axs[i][4]
+        ax_q_SARSA.clear()
+        q_img_SARSA = dimensional_stacking(ev.agents[i].q_SARSA, [2, 1], [0])
+        # print "q_img.shape", q_img.shape
+        ax_q_SARSA.pcolormesh(q_img_SARSA, cmap=plt.get_cmap("gray"), vmin = 0.0, vmax = 2.0)
+                        
     plt.draw()
     plt.pause(1e-3)
         
 
 def get_agent(args):
-    if args.sensorimotor_loop == "td_0_prediction":
-        return TD0PredictionAgent(ndim_s = 3, ndim_a = 1, ndim_x = args.world_x, ndim_y = args.world_y, alpha = args.alpha, gamma = args.gamma)
-    elif args.sensorimotor_loop == "td_0_off_policy_control":
-        return TD0OffPolicyControlAgent()
+    # if args.sensorimotor_loop == "td_0_prediction":
+    return TD0PredictionAgent(ndim_s = 3, ndim_a = 1, ndim_x = args.world_x, ndim_y = args.world_y, alpha = args.alpha, gamma = args.gamma)
+    # elif args.sensorimotor_loop == "td_0_off_policy_control":
+    # return TD0OffPolicyControlAgent(ndim_s = 3, ndim_a = 1, ndim_x = args.world_x, ndim_y = args.world_y, alpha = args.alpha, gamma = args.gamma)
     # elif args.sensorimotor_loop == "td_0_on_policy_control":
-    else:
-        print "Unknown sm loop %s, exiting" % (args.sensorimotor_loop)
-        sys.exit(1)
+    # else:
+    # print "Unknown sm loop %s, exiting" % (args.sensorimotor_loop)
+    # sys.exit(1)
     
 def rl_experiment(args):
     # numepisodes = args.numepisodes
@@ -339,6 +464,8 @@ def rl_experiment(args):
     ag = get_agent(args)
     # ag2 = TD0PredictionAgent(ndim_s = 3, ndim_a = 1)
     ev = GridEnvironment(agents = [ag], num_x = args.world_x, num_y = args.world_y)
+    # ag.q_Q[ev.goal[0,0], ev.goal[1,0],:] = 0.1
+    # ag.q_SARSA[ev.goal[0,0], ev.goal[1,0],:] = 0.0
 
     s = ag.s
     a = ag.a
