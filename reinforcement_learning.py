@@ -31,9 +31,14 @@ from dimstack import dimensional_stacking
 # from sknn.mlp import Regressor, Layer
 
 # using keras
-from keras.layers import Input, Dense
+from keras.layers import Input, Dense, Lambda
 from keras.models import Model
 from keras.optimizers import RMSprop
+from keras import initializations
+from keras.engine.topology import Merge
+
+def my_init(shape, name=None):
+    return initializations.normal(shape, scale=0.01, name=name)
 
 sensorimotor_loops = [
     "td_0_prediction",         # TD(0) prediction of v
@@ -166,17 +171,17 @@ class GridEnvironment(Environment):
             vel = [0, 0]
         elif a[0,0] == 1: # west
             vel = [1, 0]
-        elif a[0,0] == 2: # north
+        elif a[0,0] == 3: # north
             vel = [0, 1]
-        elif a[0,0] == 3: # east
+        elif a[0,0] == 5: # east
             vel = [-1, 0]
-        elif a[0,0] == 4: # south
+        elif a[0,0] == 7: # south
             vel = [0, -1]
-        elif a[0,0] == 5: # northwest
+        elif a[0,0] == 2: # northwest
             vel = [1, 1]
-        elif a[0,0] == 6: # northeast
+        elif a[0,0] == 4: # northeast
             vel = [-1, 1]
-        elif a[0,0] == 7: # southeast
+        elif a[0,0] == 6: # southeast
             vel = [-1, -1]
         elif a[0,0] == 8: # southwest
             vel = [1, -1]
@@ -223,7 +228,7 @@ class TD0PredictionAgent(Agent):
         self.repr = args.repr
         
         # hardcoded gridworld actions
-        self.actions = ["nop", "w", "n", "e", "s", "sw", "ne", "nw", "se"]
+        self.actions = ["nop", "w", "nw", "n", "ne", "e", "se", "s", "sw"]
         self.actions_num = np.arange(len(self.actions), dtype=int).reshape((len(self.actions), 1))
         # action
         self.a = np.zeros((self.actions_num.shape[1], 1))
@@ -278,101 +283,178 @@ class TD0PredictionAgent(Agent):
             sys.exit(1)
 
     def init_fa(self):
-        
+        # init_str = "normal"
+        init_str = my_init
+        layer_1_num_units = 200
+        layer_2_num_units = 20
+        output_gain = 1.0
+        input_gain  = 10.0
+                        
         # this returns a tensor
         inputs = Input(shape=(2,))
+        inputs_gain = Lambda(lambda x: x * input_gain)(inputs)
+        # inputs_squared = Lambda(lambda x: (x ** 2) * 0.1)(inputs)
+        # inputs_combined = Merge(mode="concat", concat_axis=1)([inputs_gain, inputs_squared])
         # a layer instance is callable on a tensor, and returns a tensor
-        x = Dense(20, activation='relu')(inputs)
-        x = Dense(10, activation='relu')(x)
+        x = Dense(layer_1_num_units, activation='tanh', init=init_str)(inputs_gain)
+        x = Dense(layer_2_num_units, activation='tanh', init=init_str)(x)
         predictions = Dense(1, activation='linear')(x)
+        outputs_gain = Lambda(lambda x: x * output_gain)(predictions)
 
         # this creates a model that includes
         # the Input layer and three Dense layers
-        opt_v_fa = RMSprop(lr = 1e-4)
-        self.v_fa = Model(input=inputs, output=predictions)
+        opt_v_fa = RMSprop(lr = self.alpha)
+        self.v_fa = Model(input=inputs, output=outputs_gain)
         self.v_fa.compile(optimizer=opt_v_fa, loss='mse')
+        self.v_fa_training_cnt = 0
+        self.v_fa_training_loss = 0
 
+        # Q approximation
         # this returns a tensor
-        inputs = Input(shape=(3,))
+        inputs_q_fa = Input(shape=(2 + len(self.actions),))
+        # inputs_q_fa = Input(shape=(3,))
+        inputs_gain = Lambda(lambda x: x * input_gain)(inputs_q_fa)
+        # inputs_squared = Lambda(lambda x: (x ** 2) * 0.1)(inputs_q_fa)
+        # inputs_combined = Merge(mode="concat", concat_axis=1)([inputs_gain, inputs_squared])
         # a layer instance is callable on a tensor, and returns a tensor
-        x = Dense(20, activation='relu')(inputs)
-        x = Dense(10, activation='relu')(x)
+        x = Dense(layer_1_num_units, activation='tanh', init=init_str)(inputs_gain)
+        x = Dense(layer_2_num_units, activation='tanh', init=init_str)(x)
         predictions = Dense(1, activation='linear')(x)
+        outputs_gain = Lambda(lambda x: x * output_gain)(predictions)
 
         # this creates a model that includes
         # the Input layer and three Dense layers
-        opt_q_fa = RMSprop(lr = 1e-4)
-        self.q_fa = Model(input=inputs, output=predictions)
+        opt_q_fa = RMSprop(lr = self.alpha)
+        self.q_fa = Model(input=inputs_q_fa, output=outputs_gain)
         self.q_fa.compile(optimizer=opt_q_fa, loss='mse')
+        self.q_fa_training_cnt = 0
+        self.q_fa_training_loss = 0
         
         # this returns a tensor
-        inputs = Input(shape=(3,))
+        # inputs_q_Q_fa = Input(shape=(3,))
+        inputs_q_Q_fa = Input(shape=(2 + len(self.actions),))
+        inputs_gain = Lambda(lambda x: x * input_gain)(inputs_q_Q_fa)
+        # inputs_squared = Lambda(lambda x: (x ** 2) * 0.1)(inputs_q_Q_fa)
+        # inputs_combined = Merge(mode="concat", concat_axis=1)([inputs_gain, inputs_squared])
         # a layer instance is callable on a tensor, and returns a tensor
-        x = Dense(20, activation='relu')(inputs)
-        x = Dense(10, activation='relu')(x)
+        x = Dense(layer_1_num_units, activation='tanh')(inputs_gain)
+        x = Dense(layer_2_num_units, activation='tanh')(x)
         predictions = Dense(1, activation='linear')(x)
+        outputs_gain = Lambda(lambda x: x * output_gain)(predictions)
 
         # this creates a model that includes
         # the Input layer and three Dense layers
-        opt_q_Q_fa = RMSprop(lr = 1e-4)
-        self.q_Q_fa = Model(input=inputs, output=predictions)
+        opt_q_Q_fa = RMSprop(lr = self.alpha)
+        self.q_Q_fa = Model(input=inputs_q_Q_fa, output=outputs_gain)
         self.q_Q_fa.compile(optimizer=opt_q_Q_fa, loss='mse')
+        self.q_Q_fa_training_cnt = 0
+        self.q_Q_fa_training_loss = 0
         
         # this returns a tensor
-        inputs = Input(shape=(3,))
+        inputs_q_SARSA_fa = Input(shape=(2 + len(self.actions),))
+        inputs_gain = Lambda(lambda x: x * input_gain)(inputs_q_SARSA_fa)
+        # inputs_squared = Lambda(lambda x: (x ** 2) * 0.1)(inputs_q_SARSA_fa)
+        # inputs_combined = Merge(mode="concat", concat_axis=1)([inputs_gain, inputs_squared])
         # a layer instance is callable on a tensor, and returns a tensor
-        x = Dense(20, activation='relu')(inputs)
-        x = Dense(10, activation='relu')(x)
+        x = Dense(layer_1_num_units, activation='tanh')(inputs_gain)
+        x = Dense(layer_2_num_units, activation='tanh')(x)
         predictions = Dense(1, activation='linear')(x)
-
+        outputs_gain = Lambda(lambda x: x * output_gain)(predictions)
+        
         # this creates a model that includes
         # the Input layer and three Dense layers
-        opt_q_SARSA_fa = RMSprop(lr = 1e-4)
-        self.q_SARSA_fa = Model(input=inputs, output=predictions)
+        opt_q_SARSA_fa = RMSprop(lr = self.alpha)
+        self.q_SARSA_fa = Model(input=inputs_q_SARSA_fa, output=outputs_gain)
         self.q_SARSA_fa.compile(optimizer=opt_q_SARSA_fa, loss='mse')
+        self.q_SARSA_fa_training_cnt = 0
+        self.q_SARSA_fa_training_loss = 0
         
     def v_fa_predict(self, s):
-        return self.v_fa.predict(s[:2,0].reshape((1,2)))
+        return self.v_fa.predict(s[:2,0].reshape((1,2)) * 1.0) * 1.0
         
     def v_fa_update(self, s):
         # print "s", s
+        v_fa_tm1 = self.v(self.s_tm1)
         v_fa = self.v(s)
         x = self.s_tm1[:2,0].reshape((1,2))
         y = s[2,0] + self.gamma * v_fa
-        self.v_fa.train_on_batch(x, y)  # starts training
+        if True or self.v_fa_training_cnt > 100 or s[2,0] > 0.0:
+            # target_weight = (1.0 + s[2] * 10.0).reshape()
+            target_weight = np.ones((1,)) + s[2] * 10.0
+            self.v_fa_training_loss = self.v_fa.train_on_batch(x * 1.0, y * 1.0, sample_weight = target_weight)  # starts training
+            self.v_fa_training_cnt += 1
         
     def q_fa_predict(self, s, a):
-        x = np.vstack((s[:2,0].reshape((2,1)), a))
-        return self.q_fa.predict(x.T)
+        a_ = np.zeros((len(self.actions),1))
+        a_[a[0,0],0] = 1.0
+        # x = np.vstack((s[:2,0].reshape((2,1)), a))
+        x = np.vstack((s[:2,0].reshape((2,1)), a_))
+        return self.q_fa.predict(x.T * 1.0) * 1.0
         
     def q_fa_update(self, s, a):
         # print "s", s
-        q_fa = self.q(s, a)
-        x = np.vstack((self.s_tm1[:2,0].reshape((2,1)), self.a_tm1)).T
-        y = s[2,0] + self.gamma * q_fa
-        self.q_fa.train_on_batch(x, y)  # starts training
+        a_tm1_ = np.zeros((len(self.actions),1))
+        a_tm1_[self.a_tm1[0,0],0] = 1.0
+        # print "a_tm1_", a_tm1_
         
-    def q_Q_fa_predict(self, s):
-        x = np.vstack((s[:2,0], a))
+        # q_fa_tm1 = self.q(self.s_tm1, self.a_tm1)
+        q_fa = self.q(s, a)
+        # x = np.vstack((self.s_tm1[:2,0].reshape((2,1)), self.a_tm1)).T
+        x = np.vstack((self.s_tm1[:2,0].reshape((2,1)), a_tm1_)).T
+        # print "x", x
+        y = s[2,0] + self.gamma * q_fa
+        if True or self.q_fa_training_cnt > 100 or s[2,0] > 0.0:
+            target_weight = np.ones((1,)) + s[2] * 10.0
+            self.q_fa_training_loss = self.q_fa.train_on_batch(x * 1.0, y * 1.0, sample_weight = target_weight)  # starts training
+            self.q_fa_training_cnt += 1
+        
+    def q_Q_fa_predict(self, s, a):
+        a_ = np.zeros((len(self.actions),1))
+        a_[a[0,0],0] = 1.0
+        x = np.vstack((s[:2,0].reshape((2,1)), a_))
+        # x = np.vstack((s[:2,0].reshape((2,1)), a))
         return self.q_Q_fa.predict(x.T)
         
     def q_Q_fa_update(self, s, a):
         # print "s", s
-        q_fa = self.q(s, a)
-        x = np.vstack((self.s_tm1[:2,0].reshape((2,1)), self.a_tm1)).T
-        y = s[2,0] + self.gamma * q_fa
-        self.q_fa.train_on_batch(x, y)  # starts training
+        a_tm1_ = np.zeros((len(self.actions),1))
+        a_tm1_[self.a_tm1[0,0],0] = 1.0
         
-    def q_SARSA_fa_predict(self, s):
-        x = np.vstack((s[:2,0], a))
+        # q_Q_fa_tm1 = self.q_Q(self.s_tm1, self.a_tm1)
+        q_Q_fa_ = []
+        for a_ in range(len(self.actions)):
+            q_Q_fa_.append(self.q_Q(self.s, np.array([[a_]])))
+        q_Q_fa_ = np.array([q_Q_fa_])
+        q_Q_fa_max = np.max(q_Q_fa_)
+        q_Q_fa_max = np.array([[q_Q_fa_max]]) # ?
+        # print "argmax", q_Q_fa_max
+        x = np.vstack((self.s_tm1[:2,0].reshape((2,1)), a_tm1_)).T
+        y = s[2,0] + self.gamma * q_Q_fa_max
+        # print "x", x, "y", y
+        if True or self.q_Q_fa_training_cnt > 100 or s[2,0] > 0.0:
+            target_weight = np.ones((1,)) + s[2] * 10.0
+            self.q_Q_fa_training_loss = self.q_Q_fa.train_on_batch(x, y, sample_weight = target_weight)  # starts training
+            self.q_Q_fa_training_cnt += 1
+        
+    def q_SARSA_fa_predict(self, s, a):
+        a_ = np.zeros((len(self.actions),1))
+        a_[a[0,0],0] = 1.0
+        x = np.vstack((s[:2,0].reshape((2,1)), a_))
+        # x = np.vstack((s[:2,0].reshape((2,1)), a))
         return self.q_SARSA_fa.predict(x.T)
         
     def q_SARSA_fa_update(self, s, a):
         # print "s", s
-        q_fa = self.q(s, a)
-        x = np.vstack((self.s_tm1[:2,0].reshape((2,1)), self.a_tm1)).T
-        y = s[2,0] + self.gamma * q_fa
-        self.q_fa.train_on_batch(x, y)  # starts training
+        a_tm1_ = np.zeros((len(self.actions),1))
+        a_tm1_[self.a_tm1[0,0],0] = 1.0
+        
+        q_SARSA_fa = self.q_SARSA(s, a)
+        x = np.vstack((self.s_tm1[:2,0].reshape((2,1)), a_tm1_)).T
+        y = s[2,0] + self.gamma * q_SARSA_fa
+        if True or self.q_SARSA_fa_training_cnt > 100 or s[2,0] > 0.0:
+            target_weight = np.ones((1,)) + s[2] * 10.0
+            self.q_SARSA_fa_training_loss = self.q_SARSA_fa.train_on_batch(x, y, sample_weight = target_weight)  # starts training
+            self.q_SARSA_fa_training_cnt += 1
 
     ################################################################################
 
@@ -399,13 +481,13 @@ class TD0PredictionAgent(Agent):
         l_x = int(s[0,0])
         l_y = int(s[1,0])
         l_a = int(a[0,0])
-        return self.q_tbl[l_x, l_y, l_a]
+        return self.q_Q_tbl[l_x, l_y, l_a]
 
     def q_SARSA_tbl_predict(self, s, a):
         l_x = int(s[0,0])
         l_y = int(s[1,0])
         l_a = int(a[0,0])
-        return self.q_tbl[l_x, l_y, l_a]
+        return self.q_SARSA_tbl[l_x, l_y, l_a]
         
     def v_tbl_update(self, s):
         l_x, l_y, l_x_tm1, l_y_tm1, l_a_tm1 = self.update_get_indices(s, self.s_tm1, self.a_tm1)
@@ -470,7 +552,12 @@ class TD0PredictionAgent(Agent):
         # stop episode
         if self.terminal:
             self.terminal_ -= 1
-            
+            if self.repr == "approximation":
+                if not hasattr(self, "avg_loss"):
+                    self.avg_loss = 0.0
+                self.avg_loss = 0.9 * self.avg_loss + 0.1 * np.sum([self.v_fa_training_loss, self.q_fa_training_loss, self.q_Q_fa_training_loss, self.q_SARSA_fa_training_loss])
+                print "tc", self.v_fa_training_cnt, self.v_fa_training_loss, self.q_fa_training_cnt, self.q_fa_training_loss, self.q_Q_fa_training_cnt, self.q_Q_fa_training_loss, self.q_SARSA_fa_training_cnt, self.q_SARSA_fa_training_loss
+                print "avg loss", self.avg_loss
         # sensory measurement: [x, y, reward].T
         self.s = s.copy()
         # print "%s.step s = %s" % (self.__class__.__name__, self.s)
@@ -606,27 +693,44 @@ def plot_draw_ev(fig, gs, axs, ev):
         ax_s.set_aspect(1)
 
         # meshgrid
+        # v
         v_img = np.zeros((ev.num_x, ev.num_y))
         for k in range(ev.num_x):
             for l in range(ev.num_y):
                 v_img[k,l] = a.v(np.array([[k, l, 0]]).T)
-        v_img = v_img.T
-        print "v_img", v_img
+        ev.agents[i].v_tbl = v_img.T
 
+        # q
         q_img = np.zeros((ev.num_x, ev.num_y, 9))
         for k in range(ev.num_x):
             for l in range(ev.num_y):
                 for m in range(9):
-                    q_img[k,l,m] = a.v(np.array([[k, l, m]]).T)
-        q_img_full = q_img.copy()
-        print "q_img_full", q_img_full
+                    q_img[k,l,m] = a.q(np.array([[k, l]]).T, np.array([[m]]).T)
+        # q_img_full = ev.agents[i].q_tbl
+        ev.agents[i].q_tbl = q_img.copy().transpose([0, 1, 2])
+
+        # q_Q
+        q_Q_img = np.zeros((ev.num_x, ev.num_y, 9))
+        for k in range(ev.num_x):
+            for l in range(ev.num_y):
+                for m in range(9):
+                    q_Q_img[k,l,m] = a.q_Q(np.array([[k, l]]).T, np.array([[m]]).T)
+        ev.agents[i].q_Q_tbl = q_Q_img.copy().transpose([0, 1, 2])
+
+        # q_SARSA
+        q_SARSA_img = np.zeros((ev.num_x, ev.num_y, 9))
+        for k in range(ev.num_x):
+            for l in range(ev.num_y):
+                for m in range(9):
+                    q_SARSA_img[k,l,m] = a.q_SARSA(np.array([[k, l]]).T, np.array([[m]]).T)
+        ev.agents[i].q_SARSA_tbl = q_SARSA_img.copy().transpose([0, 1, 2])
         
         # plot state value
         ax_v = axs[i][1]
         ax_v.clear()
         # v_img = np.log(ev.agents[i].v_tbl + 1.0)
-        # v_img = ev.agents[i].v_tbl.T
-        ax_v.pcolormesh(v_img, cmap=plt.get_cmap("gray"), vmin = 0.0) # , vmax = 1.0)
+        v_img = ev.agents[i].v_tbl
+        ax_v.pcolormesh(v_img, cmap=plt.get_cmap("gray"))#, vmin = 0.0) # , vmax = 1.0)
         ax_v.set_title("Agent %d state value v(s)" % i, fontsize = 8)
         ax_v.set_xlabel("x")
         ax_v.set_ylabel("y")
@@ -636,10 +740,11 @@ def plot_draw_ev(fig, gs, axs, ev):
         ax_q = axs[i][2]
         ax_q.clear()
         ax_q.set_title("Q_{TD(0)", fontsize=8)
-        # q_img_full = ev.agents[i].q_tbl
-        q_img = dimensional_stacking(np.transpose(q_img_full, [1, 0, 2]), [2, 1], [0])
+        q_img = ev.agents[i].q_tbl
+        print "q_img", np.min(q_img), np.max(q_img)
+        q_img = dimensional_stacking(np.transpose(q_img, [1, 0, 2]), [2, 1], [0])
         # print "q_img.shape", q_img.shape
-        ax_q.pcolormesh(q_img, cmap=plt.get_cmap("gray"), vmin = 0.0, vmax = 2.0)
+        ax_q.pcolormesh(q_img, cmap=plt.get_cmap("gray"))#, vmin = 0.0)#, vmax = 2.0)
         ax_q.set_title("Agent %d state-action value q(s,a)" % i, fontsize = 8)
         # ax_q.set_xlabel("f(a, x)")
         ax_q.set_ylabel("y")
@@ -665,10 +770,12 @@ def plot_draw_ev(fig, gs, axs, ev):
         ax_q_Q = axs[i][3]
         ax_q_Q.clear()
         ax_q_Q.set_title("Q_{Q}, min = %f, max = %f" % (np.min(ev.agents[i].q_Q_tbl), np.max(ev.agents[i].q_Q_tbl)), fontsize=8)
-        q_img_Q = dimensional_stacking(np.transpose(ev.agents[i].q_Q_tbl, [1, 0, 2]), [2, 1], [0])
+        q_Q_img = ev.agents[i].q_Q_tbl
+        print "q_Q_img", np.min(q_Q_img), np.max(q_Q_img)
+        q_img_Q = dimensional_stacking(np.transpose(q_Q_img, [1, 0, 2]), [2, 1], [0])
         # q_img = dimensional_stacking(ev.agents[i].q_SARSA_tbl, [2, 1], [0])
         # print "q_img.shape", q_img.shape
-        ax_q_Q.pcolormesh(q_img_Q, cmap=plt.get_cmap("gray"), vmin = 0.0) #, vmax = 2.0)
+        ax_q_Q.pcolormesh(q_img_Q, cmap=plt.get_cmap("gray"))#, vmin = 0.0) #, vmax = 2.0)
         ax_q_Q.set_aspect(1)
         ax_q_Q.set_xticks([])
 
@@ -676,14 +783,16 @@ def plot_draw_ev(fig, gs, axs, ev):
         ax_q_SARSA = axs[i][4]
         ax_q_SARSA.clear()
         ax_q_SARSA.set_title("Q_{SARSA} min = %f, max = %f" % (np.min(ev.agents[i].q_SARSA_tbl), np.max(ev.agents[i].q_SARSA_tbl)), fontsize=8)
-        q_img_SARSA = dimensional_stacking(np.transpose(ev.agents[i].q_SARSA_tbl, [1, 0, 2]), [2, 1], [0])
+        q_SARSA_img = ev.agents[i].q_SARSA_tbl
+        print "q_SARSA_img", np.min(q_SARSA_img), np.max(q_SARSA_img)
+        q_img_SARSA = dimensional_stacking(np.transpose(q_SARSA_img, [1, 0, 2]), [2, 1], [0])
         # print "q_img.shape", q_img.shape
-        mpabl = ax_q_SARSA.pcolormesh(q_img_SARSA, cmap=plt.get_cmap("gray"), vmin = 0.0, vmax = 5.0)
+        mpabl = ax_q_SARSA.pcolormesh(q_img_SARSA, cmap=plt.get_cmap("gray"))#, vmin = 0.0, vmax = 5.0)
         ax_q_SARSA.set_aspect(1)
         # plt.colorbar(mpabl, ax=ax_q_SARSA, orientation="horizontal")
         
         ax_q_SARSA.set_xticks(np.arange(0, 5*9, 2.5))
-        ticklabels = ["x=x,a=nop", "x=x,a=w", "x=x,a=n", "x=x,a=e", "x=x,a=s", "x=x,a=nw", "x=x,a=ne", "x=x,a=se", "x=x,a=sw"]
+        ticklabels = ["x=x,a=nop", "x=x,a=w", "x=x,a=nw", "x=x,a=n", "x=x,a=ne", "x=x,a=e", "x=x,a=se", "x=x,a=s", "x=x,a=sw"]
         # ticklabels.insert(0, "")
         ticklabels2 = []
 
@@ -752,7 +861,6 @@ def rl_experiment(args):
             # print "td_0_prediction a[t = %d] = %s, s[t = %d] = %s" % (t, a, t, s)
             if (i * args.maxsteps + t) % args.plotfreq == 0:
                 print "plotting at step %d" % (i * args.maxsteps + t)
-                # FIXME: if approx generate table from fa
                 plot_draw_ev(fig, gs, axs, ev)
             terminal = np.all(np.array([agent.terminal_ < 1 for agent in ev.agents]))
             t += 1
