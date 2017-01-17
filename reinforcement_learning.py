@@ -395,7 +395,7 @@ class TD0PredictionAgent(Agent):
         
     def q_fa_predict(self, s, a):
         a_ = np.zeros((len(self.actions),1))
-        a_[a[0,0],0] = 1.0
+        a_[int(a[0,0]),0] = 1.0
         # x = np.vstack((s[:2,0].reshape((2,1)), a))
         x = np.vstack((s[:2,0].reshape((2,1)), a_))
         return self.q_fa.predict(x.T * 1.0) * 1.0
@@ -403,7 +403,7 @@ class TD0PredictionAgent(Agent):
     def q_fa_update(self, s, a):
         # print "s", s
         a_tm1_ = np.zeros((len(self.actions),1))
-        a_tm1_[self.a_tm1[0,0],0] = 1.0
+        a_tm1_[int(self.a_tm1[0,0]),0] = 1.0
         # print "a_tm1_", a_tm1_
         
         # q_fa_tm1 = self.q(self.s_tm1, self.a_tm1)
@@ -427,7 +427,7 @@ class TD0PredictionAgent(Agent):
     def q_Q_fa_update(self, s, a):
         # print "s", s
         a_tm1_ = np.zeros((len(self.actions),1))
-        a_tm1_[self.a_tm1[0,0],0] = 1.0
+        a_tm1_[int(self.a_tm1[0,0]),0] = 1.0
         
         # q_Q_fa_tm1 = self.q_Q(self.s_tm1, self.a_tm1)
         q_Q_fa_ = []
@@ -455,7 +455,7 @@ class TD0PredictionAgent(Agent):
     def q_SARSA_fa_update(self, s, a):
         # print "s", s
         a_tm1_ = np.zeros((len(self.actions),1))
-        a_tm1_[self.a_tm1[0,0],0] = 1.0
+        a_tm1_[int(self.a_tm1[0,0]),0] = 1.0
         
         q_SARSA_fa = self.q_SARSA(s, a)
         x = np.vstack((self.s_tm1[:2,0].reshape((2,1)), a_tm1_)).T
@@ -873,7 +873,7 @@ def rl_experiment(args):
                 plot_draw_ev(fig, gs, axs, ev)
             terminal = np.all(np.array([agent.terminal_ < 1 for agent in ev.agents]))
             t += 1
-        print "epi %d, final step %d" % (i, t)
+        print "epi %d, final step %d, avg loss = %f" % (i, t, ev.agents[0].avg_loss)
 
     print "ev.steps = %d" % (ev.t)
     print "ag.steps = %d" % (ag.t)
