@@ -9,7 +9,8 @@ Implementing only Temporal Difference methods so far:
  - SARSA
 
 Possible additions
- - use function approximation for v,q,q_Q,q_SARSA
+ - x use function approximation for v,q,q_Q,q_SARSA
+ - policy search for continuous space
  - use state matrix as visual input / compare pg-pong, although that uses policy gradient
  
 2017 Oswald Berthold
@@ -30,21 +31,26 @@ from dimstack import dimensional_stacking
 # # from scikit neural networks
 # from sknn.mlp import Regressor, Layer
 
-# using keras
-from keras.layers import Input, Dense, Lambda
-from keras.models import Model
-from keras.optimizers import RMSprop
-from keras import initializations
-from keras.engine.topology import Merge
-
-def my_init(shape, name=None):
-    return initializations.normal(shape, scale=0.01, name=name)
+# try using keras
+try:
+    from keras.layers import Input, Dense, Lambda
+    from keras.models import Model
+    from keras.optimizers import RMSprop
+    from keras import initializations
+    from keras.engine.topology import Merge
+    HAVE_KERAS = True
+except ImportError, e:
+    print "Couldn't import Keras because %s" % e
+    HAVE_KERAS = False
 
 sensorimotor_loops = [
     "td_0_prediction",         # TD(0) prediction of v
     "td_0_off_policy_control", # aka Q-Learning
     "td_0_on_policy_control",  # aka SARSA"
     ]
+
+def my_init(shape, name=None):
+    return initializations.normal(shape, scale=0.01, name=name)
 
 class Environment(object):
     def __init__(self, agents = []):
@@ -258,7 +264,7 @@ class TD0PredictionAgent(Agent):
             self.q_update       = self.q_tbl_update
             self.q_Q_update     = self.q_Q_tbl_update
             self.q_SARSA_update = self.q_SARSA_tbl_update
-        elif self.repr == "approximation":
+        elif self.repr == "approximation" and HAVE_KERAS:
             self.init_fa()
             self.v       = self.v_fa_predict
             self.q       = self.q_fa_predict
@@ -268,6 +274,9 @@ class TD0PredictionAgent(Agent):
             self.q_update       = self.q_fa_update
             self.q_Q_update     = self.q_Q_fa_update
             self.q_SARSA_update = self.q_SARSA_fa_update
+        else:
+            print "Something went wrong, check the output"
+            sys.exit(1)
 
         # set pplicy according to learner
         print "self.sensorimotor_loop", self.sensorimotor_loop
