@@ -232,6 +232,9 @@ class TD0PredictionAgent(Agent):
 
         # type of value functions representation: table, parameterized approximation
         self.repr = args.repr
+
+        # fallback
+        self.avg_loss = 0.0
         
         # hardcoded gridworld actions
         self.actions = ["nop", "w", "nw", "n", "ne", "e", "se", "s", "sw"]
