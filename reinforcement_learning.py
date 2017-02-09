@@ -897,7 +897,7 @@ if __name__ == "__main__":
     parser.add_argument("-a",  "--alpha",   default=1e-2,  type=float, help="Learning rate \alpha [0.01]")
     parser.add_argument("-e",  "--epsilon", default=0.1,   type=float, help="\epsilon-greedy \epsilon [0.1]")
     parser.add_argument("-g",  "--gamma",   default=0.8,  type=float, help="Discount factor \gamma [0.8]")
-    parser.add_argument("-ne", "--numepisodes", default=500,  type=int, help="Number of episodes [500]")
+    parser.add_argument("-ne", "--numepisodes", default=1000,  type=int, help="Number of episodes [500]")
     parser.add_argument("-ms", "--maxsteps",    default=100, type=int, help="Maximum number of steps per episodes [100]")
     parser.add_argument("-sm", "--sensorimotor_loop", default="td_0_prediction", type=str, help="Which sm loop (Learner), one of " + ", ".join(sensorimotor_loops) + " [td_0_prediction]")
     parser.add_argument("-p",  "--plotfreq", default=1000,    type=int, help="Plotting interval in steps [1000]")
