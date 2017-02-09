@@ -8,16 +8,16 @@ Implementing only Temporal Difference methods so far:
  - Q-Learning
  - SARSA
 
-Possible additions
+TODO
  - x use function approximation for v,q,q_Q,q_SARSA
  - policy search for continuous space
  - use state matrix as visual input / compare pg-pong, although that uses policy gradient
+ - use pushback for implementing lambda?
+ - saving/loading of previously learnt models
+ - clean up class structure
  
 2017 Oswald Berthold
 """
-
-# notes
-#  use pushback for implementing lambda?
 
 import argparse, sys
 import numpy as np
