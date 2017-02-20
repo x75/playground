@@ -105,5 +105,3 @@ fig.colorbar(mappable = mp, ax = ax3, orientation="horizontal", fraction=0.05)
 # ax3.set_aspect(1)
 
 plt.show()
-
-
