@@ -2,8 +2,9 @@
 classification or regression task"""
 
 
-# 2016 oswald berthold
+# 2016,2017 oswald berthold
 
+# TODO: fix examples with regard to information decomposition (see im_quadrotor_plot.py:plot_infth_mi_sensorimotor_xyzpsi_data_vs_model
 # TODO: compute these measures using our own density estimators: gmm, som
 # TODO: clean up for pushing: merge with smp.infth, pull im_quadrotor_plot stuff
 # TODO: clear data?
