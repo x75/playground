@@ -27,11 +27,12 @@ from im.im_quadrotor_plot import plot_infth_multi_image
 class InfthDataSets(object):
     
     def __init__(self):
-        self.datasets = [self.get_data_toy_rec2pol, self.get_data_toy_exp]
+        # self.datasets = [self.get_data_toy_rec2pol, self.get_data_toy_exp]
         # self.datasets = [self.get_data_toy_rec2pol_noise, self.get_data_toy_exp_noise]
         # self.datasets = [self.get_data_ratslam_conv3, self.get_data_ratslam_rsf]
         # self.datasets = [self.get_data_spider_thin_15, self.get_data_spider_thick_15]
         # self.datasets = [self.get_data_ratslam_rsf]
+        self.datasets = [self.get_data_ratslam_conv3, self.get_data_ratslam_rsf]
         # self.datasets = [get_data_toy_rec2pol, get_data_toy_exp, get_data_ratslam_conv3, get_data_ratslam_rsf, get_data_mfcc_motors, get_data_wave_motors]
     
     def get_data_toy_rec2pol(self, numsteps = 1000):
@@ -326,13 +327,14 @@ class InfthMeasures(object):
         # pl.plot(Y_)
         idx = np.argsort(y_test, axis=0)
         print y_test.shape, idx.shape
-        print idx
+        print "idx", idx, idx.flatten()
 
         y_sorted = y_[idx.flatten()]
+        print "y_sorted", y_sorted.shape
         lm2 = linear_model.Ridge(alpha=0.0)
-        y_sorted_flat = y_sorted.reshape((-1, 1))
+        y_sorted_flat = y_sorted.copy() # .reshape((-1, 1))
         idx_flat = np.arange(y_sorted.shape[0]).reshape((-1, 1))
-        print "shapes", y_sorted_flat.shape, idx_flat.shape
+        print "shapes y_sorted_flat, idx_flat", y_sorted_flat.shape, idx_flat.shape
         lm2.fit(idx_flat, y_sorted_flat)
         # print dir(lm2)
         print lm2.coef_, lm2.intercept_
@@ -342,11 +344,11 @@ class InfthMeasures(object):
         y_krr = krr.predict(X_test)
         y_krr_sorted = y_krr[idx.flatten()]
                 
-        pl.plot(y_test[idx.flatten()])
-        pl.plot(y_sorted_flat)
-        pl.plot(y_krr_sorted)
-        pl.plot(idx_flat, lm2.coef_ * idx_flat + lm2.intercept_)
-        pl.show()
+        # pl.plot(y_test[idx.flatten()])
+        # pl.plot(y_sorted_flat)
+        # pl.plot(y_krr_sorted)
+        # # pl.plot(idx_flat, lm2.coef_ * idx_flat.T + lm2.intercept_)
+        # pl.show()
         
         return mse
         
@@ -354,8 +356,8 @@ class InfthMeasures(object):
         """learn tapping"""
         pass
         
-def main():
-    doplot = False
+def main(args):
+    doplot = args.doplot
     
     init_jpype()
 
@@ -388,11 +390,11 @@ def main():
         # mimat = ims.infth_mi_elementwise(data)
         # print "Mutual Information element-wise min = %f, max = %f" % (np.min(mimat), np.max(mimat))
         # # TODO: compute historgram over flattened upper triangular mimat
-        # probe_reg_mse = ims.infth_linear_probe(data)
-        # print "Linear Probe MSE = %f" % (probe_reg_mse)
+        probe_reg_mse = ims.infth_linear_probe(data)
+        print "Linear Probe MSE = %f" % (probe_reg_mse)
 
 
-        # mse_s.append(probe_reg_mse)
+        mse_s.append(probe_reg_mse)
         
         ################################################################################
         # plotting
@@ -516,16 +518,19 @@ def main_dimstack():
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    # TODO datafile, measure mode, ...
     parser.add_argument("-m", "--mode", default="infth", type=str, help="which mode to run: infth, dimstack")
+    parser.add_argument('-dp', "--doplot", action='store_true', help='Do additional plotting?')
     args = parser.parse_args()
     
     # definitions of entropy, joint entropy, conditional entropy, etc from Lizier 2014 JIDT Paper/Cheatsheet
 
-    if args.mode == "infth":    
+    if args.mode == "infth":
+        stats_size = 1
         mse_s = []
-        for i in range(10):
+        for i in range(stats_size):
             # mse_s = main()
-            mse_s.append(main())
+            mse_s.append(main(args))
         print "mse_s", mse_s
         mse_s = np.array(mse_s)
         print "conv3 avg mse over 100 runs @120-dim proj = %f" % mse_s[:,0].mean() # mse_s[range(0, 10, 2)]
