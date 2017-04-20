@@ -430,34 +430,33 @@ def main(args):
     return mse_s
 
 def main_dimstack():
+    """Simple example of dimensional stacking"""
     from smp.dimstack import dimensional_stacking
 
-    # srcdim = 4
-    # edgelen = 10
-    # dimdata = np.zeros([edgelen] * srcdim)
-    # print "dimdata.shape", dimdata.shape
-    # # for dim in range(4):
-    # #     dimdata.append(np.random.uniform(0, dim+1, (20**2,)))
-    # # dimdata = np.random.uniform(0, 1, (10, 10, 10, 10))
-    # dimdata = np.random.uniform(0, np.array([i for i in range(10)]),
-    #                             (10, 10, 10, ))
+    ##################################################
+    # generate data sweep data
 
-
-    # print "dimdata[0,0,0]", dimdata[0,0,1]
-    # doesnt work like this, use meshgrid 4D
-        
-    # dimdata = np.array(dimdata)
-
+    # 4D cube with edge length edgelen and discretized axes d0-d3
     edgelen = 10
-    d0 = np.linspace(0, 0.25*np.pi, edgelen)
-    d1 = np.linspace(0, 0.5*np.pi, edgelen)
-    d2 = np.linspace(0, 0.75*np.pi, edgelen)
-    # d3 = np.linspace(0, 1.0*np.pi, edgelen)
-    d3 = np.zeros((edgelen,))
+    # d0 = np.linspace(0, 0.25*np.pi, edgelen)
+    # d1 = np.linspace(0, 0.5*np.pi, edgelen)
+    # d2 = np.linspace(0, 0.75*np.pi, edgelen)
+    # d3 = np.linspace(0, 1.0*np.pi, edgelen)    
+
+    f1, f2, f3, f4 = (0.1, 0.12, 0.13, 0.14)
+    d0 = np.linspace(0, 2*np.pi * f1, edgelen)
+    d1 = np.linspace(0, 2*np.pi * f2, edgelen)
+    d2 = np.linspace(0, 2*np.pi * f3, edgelen)
+    d3 = np.linspace(0, 2*np.pi * f4, edgelen)    
+    
+    # play to probe the plot
+    # d3 = np.zeros((edgelen,))
     eps = 1e-8
 
+    # create meshgrid
     d0_, d1_, d2_, d3_ = np.meshgrid(d0, d1, d2, d3)
 
+    # sin argument
     a1 = d0_**2 + d1_**2 + d2_**2 + d3_**2
     a2 = d0_**2 + d1_**2 + d2_**2 # + d3_**2
     # z = np.sin(a1) / (np.sin(-a2 + np.random.uniform(0, np.pi)) + eps)**(1/2)
@@ -467,28 +466,37 @@ def main_dimstack():
     # pl.show()
     
     print "z.shape", z.shape #, z
-    
+
+    # configure dimstack axes mapping
     xdims = [0, 2]
     ydims = [1, 3]
-            
+
+    # compute stacked data
     stacked_data = dimensional_stacking(z, xdims, ydims)
 
     print "stacked_data.shape", stacked_data.shape
     # print "stacked_data", stacked_data
 
-    # pl.imshow
-    pl.subplot(121)
-    pl.pcolormesh(stacked_data)
-    pl.gca().set_aspect(1.0)
+    from matplotlib import gridspec
+    fig = pl.figure()
+    gs = gridspec.GridSpec(1,2)
+    ax1 = fig.add_subplot(gs[0,0])
+    ax1.set_title("4D sine wave")
+    ax1.pcolormesh(stacked_data, cmap = pl.get_cmap("seismic")) # spectral?
+    ax1.set_aspect(1.0)
 
+    ##################################################
+    # generate histogram data
+    
     # t = np.linspace(0, 1, 1000)
     t = np.random.uniform(-np.pi, np.pi, 10000)
 
     t1 = t * 1e-3
     # X = np.array([np.cos(t*1e-1)**2, np.cos(t * 0.0013), np.cos(t*0.001)/(t1+1e-9), np.sin(t*1.0)/(t1+1e-9)]).T
     # X = np.array([np.sin(t1**2), np.exp(-(t**2)), t**3, t**0.5]).T
-    X = np.array([t*0.1, t*0, t*0, t*0]).T # t*0.12, t*0.14, t*0.16]).T
-    Xn = np.random.normal([0.1, 0.5, 1.0, 2.0], [0.2, 1.0, 0.5, 0.1], (10000, 4)) #, X.shape)
+    # X = np.array([t*0.1, t*0, t*0, t*0]).T # t*0.12, t*0.14, t*0.16]).T
+    X = np.zeros((t.shape[0], 4))
+    Xn = np.random.normal([0.1, 0.5, 1.0, 2.0], [0.2, 1.0, 0.5, 0.1], (t.shape[0], 4)) #, X.shape)
     X = X + Xn
     print "X.shape", X.shape
     # use a histogram, that is scatterstack
@@ -497,12 +505,13 @@ def main_dimstack():
     print "histo shape Xh", Xh[0].shape
     # Xh += Xn.reshape((10, 10, 10, 10))
 
-    Xh[0][0,:,:,:] = 20.0
-    Xh[0][1,:,:,:] = 30.0
-    Xh[0][:,1,:,:] = 40.0
-    Xh[0][:,:,2,:] = 50.0
-    Xh[0][:,:,4,:] = 70.0
-    Xh[0][:,:,:,7] = 100.0
+    # # line markers
+    # Xh[0][0,:,:,:] = 20.0
+    # Xh[0][1,:,:,:] = 30.0
+    # Xh[0][:,1,:,:] = 40.0
+    # Xh[0][:,:,2,:] = 50.0
+    # Xh[0][:,:,4,:] = 70.0
+    # Xh[0][:,:,:,7] = 100.0
     
     stacked_data = dimensional_stacking(Xh[0], xdims, ydims)
 
@@ -510,11 +519,13 @@ def main_dimstack():
     # , stacked_data
 
         
-    pl.subplot(122)
+    ax2 = fig.add_subplot(gs[0,1])
+    ax2.set_title("Histogram of correlated 4D uniform white noise")
     x_ = np.linspace(-1.0, 1.0, 10**2)
     y_ = np.linspace(-1.0, 1.0, 10**2)
-    pl.pcolormesh(x_, y_, stacked_data)
-    pl.gca().set_aspect(1.0)
+    ax2.pcolormesh(x_, y_, stacked_data)
+    ax2.set_aspect(1.0)
+    
     pl.show()
     
 if __name__ == "__main__":
