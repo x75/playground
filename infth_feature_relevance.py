@@ -523,7 +523,7 @@ def main_dimstack():
     ax2.set_title("Histogram of correlated 4D uniform white noise")
     x_ = np.linspace(-1.0, 1.0, 10**2)
     y_ = np.linspace(-1.0, 1.0, 10**2)
-    ax2.pcolormesh(x_, y_, stacked_data)
+    ax2.pcolormesh(x_, y_, stacked_data, cmap=pl.get_cmap("Oranges"))
     ax2.set_aspect(1.0)
     
     pl.show()
