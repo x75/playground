@@ -9,6 +9,16 @@ classification or regression task"""
 # TODO: clean up for pushing: merge with smp.infth, pull im_quadrotor_plot stuff
 # TODO: clear data?
 
+# TODO: siggen / systems
+# TODO: meas   / infth
+# TODO: models fit-predict
+
+# corr as comparison
+# element-wise MI
+# check entropy in LCP
+# more data: aleke, mfcc
+# pi, ais, te, cte
+
 import argparse, os, sys, time
 import numpy as np
 import pylab as pl
@@ -18,12 +28,6 @@ from jpype import startJVM, isJVMStarted, getDefaultJVMPath, JPackage, shutdownJ
 from smp.infth import init_jpype
 
 from im.im_quadrotor_plot import plot_infth_multi_image
-
-# corr as comparison
-# element-wise MI
-# check entropy in LCP
-# more data: aleke, mfcc
-# pi, ais, te, cte
 
 class InfthDataSets(object):
     
