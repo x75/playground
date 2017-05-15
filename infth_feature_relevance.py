@@ -186,38 +186,40 @@ class InfthMeasures(object):
         ent_single = np.array(ent_single)
         ent_avg = np.sum(ent_single)
         return ent_avg, ent_single
-        
+
     def infth_mi_multivariate(self, data, estimator = "kraskov1", normalize = True):
-        """compute MI multivariate"""
-        # init class and instance
-        # self.mimvCalcClass = JPackage("infodynamics.measures.continuous.kraskov").MutualInfoCalculatorMultiVariateKraskov1
-        self.mimvCalcClass = JPackage("infodynamics.measures.continuous.kraskov").MutualInfoCalculatorMultiVariateKraskov2        
-        # self.mimvCalcClass = JPackage("infodynamics.measures.continuous.kernel").MutualInfoCalculatorMultiVariateKernel
-        self.mimvCalc      = self.mimvCalcClass()
-        # set properties
-        self.mimvCalc.setProperty("NORMALISE", "true")
-        # self.mimvCalc.setProperty("PROP_TIME_DIFF", 0)
+        return infth_mi_multivariate(data = data, estimator = estimator, normalize = normalize)
+    # def infth_mi_multivariate(self, data, estimator = "kraskov1", normalize = True):
+    #     """compute MI multivariate"""
+    #     # init class and instance
+    #     # self.mimvCalcClass = JPackage("infodynamics.measures.continuous.kraskov").MutualInfoCalculatorMultiVariateKraskov1
+    #     self.mimvCalcClass = JPackage("infodynamics.measures.continuous.kraskov").MutualInfoCalculatorMultiVariateKraskov2        
+    #     # self.mimvCalcClass = JPackage("infodynamics.measures.continuous.kernel").MutualInfoCalculatorMultiVariateKernel
+    #     self.mimvCalc      = self.mimvCalcClass()
+    #     # set properties
+    #     self.mimvCalc.setProperty("NORMALISE", "true")
+    #     # self.mimvCalc.setProperty("PROP_TIME_DIFF", 0)
 
-        # prepare data and attributes
-        src, dst = self.prepare_data_and_attributes(data)
-        # src_ = src.copy()
-        # src = dst.copy()
+    #     # prepare data and attributes
+    #     src, dst = self.prepare_data_and_attributes(data)
+    #     # src_ = src.copy()
+    #     # src = dst.copy()
 
-        # pl.hist(src[0], bins=255)
-        # pl.show()
+    #     # pl.hist(src[0], bins=255)
+    #     # pl.show()
         
         
-        print "mimv shapes", src.shape, dst.shape
-        print "mimv dtypes", src.dtype, dst.dtype
-        dim_src, dim_dst = src.shape[1], dst.shape[1]
+    #     print "mimv shapes", src.shape, dst.shape
+    #     print "mimv dtypes", src.dtype, dst.dtype
+    #     dim_src, dim_dst = src.shape[1], dst.shape[1]
         
-        # compute stuff
-        # self.mimvCalc.initialise()
-        self.mimvCalc.initialise(dim_src, dim_dst)
-        self.mimvCalc.setObservations(src, dst)
-        # the average global MI between all source channels and all destination channels
-        mimv_avg = self.mimvCalc.computeAverageLocalOfObservations()
-        return mimv_avg
+    #     # compute stuff
+    #     # self.mimvCalc.initialise()
+    #     self.mimvCalc.initialise(dim_src, dim_dst)
+    #     self.mimvCalc.setObservations(src, dst)
+    #     # the average global MI between all source channels and all destination channels
+    #     mimv_avg = self.mimvCalc.computeAverageLocalOfObservations()
+    #     return mimv_avg
 
     def infth_mi_elementwise(self, data):
         """elementwise MI matrix, taken from im/im_quadrotor_plot.py:compute_mutual_information"""
