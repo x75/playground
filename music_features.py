@@ -19,18 +19,16 @@ def makefig(rows = 1, cols = 1):
         fig.add_subplot(i)
     return fig
 
+def loadaudio(args):
+    loader = estd.MonoLoader(filename= args.file, sampleRate = args.samplerate)
+    return loader()
+
 def main_mfcc(args):
 
     plt.ion()
 
-    # we start by instantiating the audio loader:
-    loader = estd.MonoLoader(filename= args.file, sampleRate = args.samplerate)
-
-    # and then we actually perform the loading:
-    audio = loader()
-
-    # print dir(loader)
-
+    audio = loadaudio(args)
+    
     print "audio", type(audio), audio.shape
 
     # pylab contains the plot() function, as well as figure, etc... (same names as Matlab)
@@ -119,9 +117,8 @@ def main_mfcc(args):
     plt.show() # unnecessary if you started "ipython --pylab"
 
 def main_danceability(args):
-    loader = estd.MonoLoader(filename= args.file, sampleRate = args.samplerate)
-    audio = loader()
-
+    audio = loadaudio(args)
+    
     # create the pool and the necessary algorithms
     pool = e.Pool()
     w = estd.Windowing()
@@ -165,7 +162,23 @@ def main_danceability(args):
 
     plt.show()
 
+def main_extractor(args):
+    audio = loadaudio(args)
     
+    frame = audio
+
+    extr = estd.Extractor()
+
+    # # compute the centroid for all frames in our audio and add it to the pool
+    # for frame in estd.FrameGenerator(audio, frameSize = 10 * args.samplerate, hopSize = 5 * args.samplerate):
+    #     dreal, ddfa = danceability(w(frame))
+    #     print "d", dreal # , "frame", frame
+    #     pool.add('rhythm.danceability', dreal)
+    
+    p = extr(frame)
+
+    for desc in p.descriptorNames():
+        print "{0: >20}: {1}".format(desc, p[desc])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -179,4 +192,6 @@ if __name__ == "__main__":
         main_mfcc(args)
     elif args.mode == "danceability":
         main_danceability(args)
+    elif args.mode == "extractor":
+        main_extractor(args)
     
