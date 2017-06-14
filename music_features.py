@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 
+import pickle
+
 import essentia as e
 import essentia.standard as estd
 
@@ -177,13 +179,82 @@ def main_extractor(args):
     
     p = extr(frame)
 
+    pdict = {}
+    # print "type(p)", type(p)
     for desc in p.descriptorNames():
-        print "{0: >20}: {1}".format(desc, p[desc])
+        print desc, type(p[desc])
+        #     print "{0: >20}: {1}".format(desc, p[desc])
+        pdict[desc] = p[desc]
 
+    pickle.dump(pdict, open("data/music_features_%s.pkl" % (args.file.replace("/", "_"), ), "wb"))
+
+def main_extractor_pickle_plot(args):
+    from matplotlib import rcParams
+    rcParams['axes.titlesize'] = 7
+    rcParams['axes.labelsize'] = 6
+    rcParams['xtick.labelsize'] = 6
+    rcParams['ytick.labelsize'] = 6
+    # load bag of features computed above from a pickle
+    pdict = pickle.load(open(args.file, "rb"))
+
+    # get sorted keys
+    feature_keys = sorted(pdict.keys())
+
+    feature_groups = np.unique([k.split(".")[0] for k in feature_keys])
+
+    # print np.unique(feature_keys_groups)
+
+    feature_keys_groups = {}
+    for group in feature_groups:
+        feature_keys_groups[group] = [k for k in feature_keys if k.split(".")[0] == group]
+
+    print len(feature_keys_groups)
+
+    for group in feature_groups:
+        fk_ = feature_keys_groups[group]
+        plot_features(pdict, feature_keys = fk_, group = group)
+    
+    plt.show()
+
+
+def plot_features(pdict, feature_keys, group):
+    numrows = int(np.sqrt(len(feature_keys)))
+    numcols = int(np.ceil(len(feature_keys)/float(numrows)))
+
+    # print numrows, numcols
+    
+    fig = plt.figure()
+    fig.suptitle(
+        "essentia extractor %s features for %s" % (group, args.file, ),
+        fontsize = 8)
+    gs = GridSpec(numrows, numcols, hspace = 0.2)
+
+    for i, k in enumerate(feature_keys):
+        ax = fig.add_subplot(gs[i])
+        if type(pdict[k]) is np.ndarray:
+            ax.plot(pdict[k], alpha = 0.5, linewidth = 0.8, linestyle = "-")
+            title = "%s/%s" % (k.split(".")[1], pdict[k].shape)
+            if i/numcols < (numrows - 1):
+                ax.set_xticklabels([])
+        elif type(pdict[k]) is float:
+            title = "%s/%s" % (k.split(".")[1], type(pdict[k]))
+            ax.text(0, 0, "%f" % (pdict[k],), fontsize = 8)
+            ax.set_xlim((-1, 1))
+            ax.set_ylim((-1, 1))
+        elif type(pdict[k]) is str:
+            title = "%s/%s" % (k.split(".")[1], type(pdict[k]))
+            ax.text(0, 0, "%s" % (pdict[k],), fontsize = 8)
+            ax.set_xlim((-1, 1))
+            ax.set_ylim((-1, 1))
+            
+        ax.set_title(title)
+
+    fig.show()
+        
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--file", help="Input file [data/ep1.wav]", type = str, default = "data/ep1.wav")
-    parser.add_argument("-m", "--mode", help="Program mode [mfcc]: mfcc, danceability", type = str, default = "mfcc")
+    parser.add_argument("-m", "--mode", help="Program mode [mfcc]: mfcc, danceability, extractor, extractor_plot", type = str, default = "mfcc")
     parser.add_argument("-sr", "--samplerate", help="Sample rate to use [44100]", type = int, default = 44100)
 
     args = parser.parse_args()
@@ -194,4 +265,6 @@ if __name__ == "__main__":
         main_danceability(args)
     elif args.mode == "extractor":
         main_extractor(args)
+    elif args.mode == "extractor_plot":
+        main_extractor_pickle_plot(args)
     
