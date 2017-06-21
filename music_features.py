@@ -169,7 +169,10 @@ def main_extractor(args):
     
     frame = audio
 
-    extr = estd.Extractor()
+    extr = estd.Extractor(
+        lowLevelFrameSize = args.frame_size_low_level,
+        lowLevelHopSize   = args.frame_size_low_level/2,
+        )
 
     # # compute the centroid for all frames in our audio and add it to the pool
     # for frame in estd.FrameGenerator(audio, frameSize = 10 * args.samplerate, hopSize = 5 * args.samplerate):
@@ -250,10 +253,107 @@ def plot_features(pdict, feature_keys, group):
         ax.set_title(title)
 
     fig.show()
+
+def main_extractor_pickle_plot_timealigned(args):
+    from matplotlib import rcParams
+    rcParams['axes.titlesize'] = 7
+    rcParams['axes.labelsize'] = 6
+    rcParams['xtick.labelsize'] = 6
+    rcParams['ytick.labelsize'] = 6
+    # load bag of features computed above from a pickle
+    pdict = pickle.load(open(args.file, "rb"))
+
+    # get sorted keys
+    feature_keys = sorted(pdict.keys())
+
+    # hack to get number of frames
+    numframes = pdict['lowLevel.spectral_centroid'].shape[0]
+
+    st = ()
+    for ftkey in pdict.keys():
+        if type(pdict[ftkey]) is np.ndarray:
+            # print ftkey, pdict[ftkey].shape
+            if pdict[ftkey].shape[0] == numframes:
+                tmp = pdict[ftkey]
+                if len(tmp.shape) == 1:
+                    tmp = tmp.reshape((numframes, 1))
+                st += (tmp, )
+    # print "st", st
+    full_time_aligned = np.hstack(st)
+    print "full_time_aligned", full_time_aligned.shape
+
+    # reduction
+    numcomps = 3
+    
+    # pca
+    from sklearn.decomposition import PCA, KernelPCA
+    pca   = PCA(n_components = numcomps)
+    print "fitting pca"
+    X_pca = pca.fit_transform(full_time_aligned)
+    # X_pca.transform(full_time_aligned)
+    # print X_pca.transform(full_time_aligned).shape
+
+    # kernel PCA
+    kpca = KernelPCA(
+        kernel="rbf", degree=5, fit_inverse_transform=True,
+        gamma=10,
+        n_components = numcomps)
+    print "fitting kpca"
+    X_kpca = kpca.fit_transform(full_time_aligned)
+
+    # tsne
+    from sklearn.manifold import TSNE
+    tsne = TSNE(n_components=numcomps, random_state=0)
+    np.set_printoptions(suppress=True)
+    print "fitting tsne"
+    X_tsne = tsne.fit_transform(full_time_aligned)
+
+
+    # plot
+    fig = plt.figure()
+    gs = GridSpec(numcomps, 3)
+    
+    for i in range(numcomps):
+        ax = fig.add_subplot(gs[i,0])
+        ax.plot(X_pca[:,i])
+
+        ax = fig.add_subplot(gs[i,1])
+        ax.plot(X_kpca[:,i])
+        
+        ax = fig.add_subplot(gs[i,2])
+        ax.plot(X_tsne[:,i])
+        # ax.set_s
+    plt.show()
+    
+    # tsne
+
+    # feature_groups = np.unique([k.split(".")[0] for k in feature_keys])
+
+    # print "feature_groups", feature_groups
+    # # print np.unique(feature_keys_groups)
+
+    # feature_keys_groups = {}
+    # for group in feature_groups:
+    #     feature_keys_groups[group] = [k for k in feature_keys if k.split(".")[0] == group]
+
+    # print len(feature_keys_groups)
+
+    # for group in feature_groups:
+    #     ftkeys = feature_keys_groups[group]
+
+    #     for ftkey in ftkeys:
+    #         print "%s-%s" % (group, ftkey)
+        
+    # plot_features(pdict, feature_keys = fk_, group = group)
+    
+    # plt.show()
+
+    
         
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--file", help="Input file [data/ep1.wav]", type = str, default = "data/ep1.wav")
+    parser.add_argument("-fsl", "--frame-size-low-level", help="Framesize for low-level features [20248]", type = int, default = 2048)
     parser.add_argument("-m", "--mode", help="Program mode [mfcc]: mfcc, danceability, extractor, extractor_plot", type = str, default = "mfcc")
     parser.add_argument("-sr", "--samplerate", help="Sample rate to use [44100]", type = int, default = 44100)
 
@@ -267,4 +367,6 @@ if __name__ == "__main__":
         main_extractor(args)
     elif args.mode == "extractor_plot":
         main_extractor_pickle_plot(args)
+    elif args.mode == "extractor_plot_timealigned":
+        main_extractor_pickle_plot_timealigned(args)
     
