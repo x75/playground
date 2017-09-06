@@ -1,0 +1,3 @@
+[submodule "adversarial/gan-intro"]
+	path = adversarial/gan-intro
+	url = git@github.com:AYLIEN/gan-intro.git
