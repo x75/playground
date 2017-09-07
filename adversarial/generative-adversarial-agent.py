@@ -9,7 +9,7 @@ import scipy.signal as signal
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 
-from smp_base.models_actinf import smpGMM, smpKNN
+from smp_base.models_actinf import smpGMM, smpIGMM, smpKNN
 from smp_base.learners import smpSHL
 
 def noisef(x):
@@ -81,8 +81,9 @@ def main_baseline(args):
     gs.transf = np.random.choice([transf0, transf1, transf2])
 
     # mdl_cls = smpGMM
+    mdl_cls = smpIGMM
     # mdl_cls = smpKNN
-    mdl_cls = smpSHL
+    # mdl_cls = smpSHL
     
     # models
     m_g = mdl1(args)
@@ -95,13 +96,14 @@ def main_baseline(args):
     m_e_conf.update({
         'idim': args.dim, 'odim': args.dim, 'n_neighbors': 8,
         'prior': 'random', 'prior_width': 1.0, 'fit_interval': 100,
-        'eta': 1e-3, 'w_input': 1.0, 'w_bias': 0.0, 'modelsize': 200,
+        'eta': 1e-3, 'w_input': 10.0, 'w_bias': 1.0, 'modelsize': 200,
         'theta_state': 0.02, 'lrname': 'FORCE', 'spectral_radius': 0.01,
-        'tau': 1.0, 'alpha': 1.0, 'wgt_thr': 10, 'mixcomps': 12, 'oversampling': 1,
+        'tau': 1.0, 'alpha': 10.0, 'wgt_thr': 10, 'mixcomps': 12, 'oversampling': 1,
         'visualize': True, 'input_coupling': 'normal',
         'sigma_mu': 5e-3, 'sigma_sig': 5e-9, 'sigma_pi': 5e-4
         })
     m_e = mdl_cls(conf = m_e_conf)
+    # m_e = smpGMM(conf = m_e_conf)
     
     # inverse
     # m_i_conf = smpGMM.defaults
@@ -112,9 +114,9 @@ def main_baseline(args):
     m_i_conf.update({
         'idim': args.dim * 2, 'odim': args.dim, 'n_neighbors': 5,
         'prior': 'random', 'prior_width': 0.1, 'fit_interval': 100,
-        'eta': 1e-3, 'w_input': 1.0, 'w_bias': 0.0, 'modelsize': 200,
+        'eta': 1e-3, 'w_input': 10.0, 'w_bias': 1.0, 'modelsize': 200,
         'theta_state': 0.02, 'lrname': 'FORCE', 'spectral_radius': 0.01,
-        'tau': 1.0, 'alpha': 1.0, 'wgt_thr': 10, 'mixcomps': 12, 'oversampling': 1,
+        'tau': 1.0, 'alpha': 10.0, 'wgt_thr': 10, 'mixcomps': 12, 'oversampling': 1,
         'visualize': True, 'input_coupling': 'normal',
         'sigma_mu': 5e-3, 'sigma_sig': 5e-9, 'sigma_pi': 5e-3
         })
@@ -237,7 +239,8 @@ def main_baseline(args):
         
         X_m_i = np.vstack((X[...,[i]], X[...,[i-1]]))
         Y_m_i = Y_[...,[i]]
-        m_i.fit(X = X_m_i.T, y = Y_m_i.T)#, update = True)
+        # m_i.fit(X = X_m_i.T, y = Y_m_i.T, update = True)
+        m_i.fit(X = X_m_i.T, y = Y_m_i.T)
 
         if i % 100 == 0 or i == (args.numsteps - 1):
             ax1.clear()
