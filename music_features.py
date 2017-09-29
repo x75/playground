@@ -1,11 +1,28 @@
+"""music_features.py
 
-import argparse
+Compute features for pieces of music audio
+
+Oswald Berthold, 2017
+
+Taking the essentia [1] library and the extractor module to compute a
+comprehensive feature-gram over a given chunk of audio.
+"""
+
+# stdlib
+import argparse, pickle, re, os
+
+# numpy/scipy
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 
-import pickle
+from sklearn.preprocessing import scale
+from sklearn.decomposition import PCA, KernelPCA
+from sklearn.manifold import TSNE
 
+import mdp
+
+# essentia
 import essentia as e
 import essentia.standard as estd
 
@@ -14,19 +31,167 @@ import essentia.standard as estd
 
 # print dir(essentia.standard)
 
-def makefig(rows = 1, cols = 1):
+class SFA(object):
+    def __init__(self, numcomps = 1, numexps = 3, rbfc = np.zeros((10, 1)), rbfs = 1.0):
+        self.flow = (
+#            mdp.nodes.EtaComputerNode() +
+#            mdp.nodes.TimeFramesNode(3) +
+            mdp.nodes.PolynomialExpansionNode(numexps) +
+#            mdp.nodes.RBFExpansionNode(rbfc, rbfs) +
+            mdp.nodes.SFANode(output_dim = numcomps) 
+#            mdp.nodes.EtaComputerNode()
+        )
+
+    def fit_transform(self, X):
+        self.fit(X)
+        return self.predict(X)
+        
+    def fit(self, X):
+        self.flow.train(X)
+
+    def predict(self, X):
+        slow = self.flow(X)
+        return slow
+
+
+def makefig(rows = 1, cols = 1, title = '', add_subplots = True):
+    """util.makefig
+
+    Create a plot figure and subplot grid
+
+    Return figure handle 'fig'
+    """
     fig = plt.figure()
     gs = GridSpec(rows, cols)
-    for i in gs:
-        fig.add_subplot(i)
-    return fig
+    if add_subplots:
+        for i in gs:
+            fig.add_subplot(i)
+    fig.suptitle(title)
+    return (fig, gs)
 
 def loadaudio(args):
+    """util.loadaudio
+
+    Load data from an audio file of any format supported by Monoloader
+    """
     loader = estd.MonoLoader(filename= args.file, sampleRate = args.samplerate)
     return loader()
 
-def main_mfcc(args):
+def main_simple(args):
+    """main_simple
 
+    Compute short time spectral feature map
+    """
+
+    plt.ion()
+    
+    audio = loadaudio(args)
+
+    w = estd.Windowing(type = 'hamming')
+    spectrum = estd.Spectrum()  # FFT() would return the complex FFT, here we just want the magnitude spectrum
+    mfcc = estd.MFCC()
+    
+    specgram = []
+    mfccs = []
+    melbands = []
+
+    for frame in estd.FrameGenerator(audio, frameSize = args.frame_size_low_level, hopSize = args.frame_size_low_level, startFromZero=True):
+        mfcc_bands, mfcc_coeffs = mfcc(spectrum(w(frame)))
+        mfccs.append(mfcc_coeffs)
+        melbands.append(mfcc_bands)
+        specgram.append(spectrum(w(frame)))
+        
+
+    # transpose to have it in a better shape
+    # we need to convert the list to an essentia.array first (== numpy.array of floats)
+    mfccs = np.array(mfccs).T
+    melbands = np.array(melbands).T
+    specgram = np.array(specgram).T
+
+    fig, gs = makefig(rows = 3, cols = 1, add_subplots = False)
+    fig.show()
+
+    print "specgram.shape", specgram.shape
+    print "melbands.shape", melbands.shape
+    
+    ax1 = fig.add_subplot(gs[0,0])
+    ax1.imshow(np.log(specgram[1:,:]), aspect = 'auto', origin='lower', interpolation='none')
+
+    ax2 = fig.add_subplot(gs[1,0])
+    ax2.imshow(mfccs[1:,:], aspect='auto', origin='lower', interpolation='none')
+
+    ax3 = fig.add_subplot(gs[2,0])
+    ax3.imshow(np.log(melbands[1:,:]), aspect = 'auto', origin='lower', interpolation='none')
+    
+    plt.draw()
+    plt.pause(1e-9)
+
+    # process
+    numcomps = 3
+    melbands_ = scale(melbands.T).T
+    # wt = PCA(n_components = melbands.shape[0], whiten = True)
+    # melbands_ = wt.fit_transform(melbands.T).T # scale(melbands.T).T
+    # melbands_ = np.log(melbands + 1)  * 10
+
+    print "melbands", melbands.shape, "melbands_", melbands_.shape
+    print "means", np.mean(melbands_, axis = 1)
+    
+    sfa_in = melbands_[1:,:]
+    sfa_cov = np.cov(sfa_in)
+    print "sfa_cov", sfa_cov.shape
+    # rbfcs = np.random.uniform(-5, 5, (numcomps, sfa_in.shape[0]))
+    # sfa = SFA(numcomps = numcomps, numexps = 2) # , rbfc = rbfcs)
+    sfa = KernelPCA(kernel="rbf", degree=5, fit_inverse_transform=True, gamma=10, n_components = numcomps)
+    
+
+    fig3, gs3 = makefig(rows = 1, cols = 2)
+    
+    fig3.axes[0].plot(sfa_in.T)
+    
+    fig3.axes[1].imshow(sfa_cov, aspect = 'auto', origin='upper', interpolation='none')
+    fig3.axes[1].set_aspect(1)
+    plt.draw()
+    plt.pause(1e-9)
+
+    try:
+        # sfa_in += np.random.uniform(-1e-3, 1e-3, sfa_in.shape)
+        melbands_sfa = sfa.fit_transform(sfa_in.T)
+        # melbands_sfa = sfa.fit_transform(specgram[1:,:].T)
+        print "melbands_sfa.shape", melbands_sfa.shape
+
+        fig2, gs2 = makefig(rows = 1, cols = 2, add_subplots = False)
+        fig2.show()
+
+        ax = fig2.add_subplot(gs2[0,0])
+        # ax.plot(melbands_sfa)
+        # ax.imshow(np.log(melbands_sfa.T), aspect = 'auto', origin='lower', interpolation='none')
+        # ax.imshow(np.log(np.abs(melbands_sfa.T)), aspect = 'auto', origin='lower', interpolation='none')
+        ax.imshow(np.abs(melbands_sfa.T), aspect = 'auto', origin='lower', interpolation='none')
+        
+        ax = fig2.add_subplot(gs2[0,1])
+        maxs = []
+        for fr_ in melbands_sfa:
+            print "fr_", fr_.shape
+            maxs.append(np.argmax(np.abs(fr_)))
+        ax.plot(np.array(maxs), "bo")
+
+        plt.draw()
+        plt.pause(1e-9)
+        
+    except Exception, e:
+        print "SFA failed", e
+
+    
+    plt.ioff()
+    plt.show()
+    
+    
+def main_mfcc(args):
+    """main_mfcc
+
+    Compute short time windowed MFCC features for input waveform and
+    plot them over time (mfcc-spectrogram)
+    """
     plt.ion()
 
     audio = loadaudio(args)
@@ -36,21 +201,20 @@ def main_mfcc(args):
     # pylab contains the plot() function, as well as figure, etc... (same names as Matlab)
     plt.rcParams['figure.figsize'] = (15, 6) # set plot sizes to something larger than default
 
-    fig = makefig(rows = 2, cols = 2)
+    fig, gs = makefig(rows = 2, cols = 2)
 
     w = estd.Windowing(type = 'hann')
     spectrum = estd.Spectrum()  # FFT() would return the complex FFT, here we just want the magnitude spectrum
     mfcc = estd.MFCC()
 
-    print "w", repr(w)
-    print "spectrum", repr(spectrum)
-    print "mfcc", repr(mfcc)
+    # print "w", repr(w)
+    # print "spectrum", repr(spectrum)
+    # print "mfcc", repr(mfcc)
 
     frame = audio[int(0.2*args.samplerate) : int(0.2*args.samplerate) + 1024]
     print "frame.shape", frame.shape
     spec = spectrum(w(frame))
     mfcc_bands, mfcc_coeffs = mfcc(spec)
-
 
     print "type(spec)", type(spec)
     print "spec.shape", spec.shape
@@ -72,8 +236,7 @@ def main_mfcc(args):
 
     # plt.show() # unnecessary if you started "ipython --pylab"
     ################################################################################
-    fig2 = makefig(rows = 2, cols = 2)
-
+    fig2, gs2 = makefig(rows = 2, cols = 2, add_subplots = False)
 
     mfccs = []
     melbands = []
@@ -88,7 +251,6 @@ def main_mfcc(args):
     mfccs = np.array(mfccs).T
     melbands = np.array(melbands).T
 
-
     pool = e.Pool()
 
     for frame in estd.FrameGenerator(audio, frameSize = 1024, hopSize = 512, startFromZero=True):
@@ -96,21 +258,24 @@ def main_mfcc(args):
         pool.add('lowlevel.mfcc', mfcc_coeffs)
         pool.add('lowlevel.mfcc_bands', mfcc_bands)
 
-    fig2.axes[2].imshow(pool['lowlevel.mfcc_bands'].T, aspect = 'auto', origin='lower', interpolation='none')
-    fig2.axes[2].set_title("Mel band spectral energies in frames")
 
-    fig2.axes[3].imshow(pool['lowlevel.mfcc'].T[1:,:], aspect='auto', origin='lower', interpolation='none')
-    fig2.axes[3].set_title("MFCCs in frames")
+    ax1 = fig2.add_subplot(gs2[0,0])
+    ax1.imshow(pool['lowlevel.mfcc_bands'].T, aspect = 'auto', origin='lower', interpolation='none')
+    ax1.set_title("Mel band spectral energies in frames")
 
-
+    ax2 = fig2.add_subplot(gs2[0,1])
+    ax2.imshow(pool['lowlevel.mfcc'].T[1:,:], aspect='auto', origin='lower', interpolation='none')
+    ax2.set_title("MFCCs in frames")
 
     # and plot
-    fig2.axes[0].imshow(melbands[:,:], aspect = 'auto', origin='lower', interpolation='none')
-    fig2.axes[0].set_title("Mel band spectral energies in frames")
+    ax3 = fig2.add_subplot(gs2[1,0])
+    ax3.imshow(melbands[:,:], aspect = 'auto', origin='lower', interpolation='none')
+    ax3.set_title("Mel band spectral energies in frames")
     # show() # unnecessary if you started "ipython --pylab"
 
-    fig2.axes[1].imshow(mfccs[1:,:], aspect='auto', origin='lower', interpolation='none')
-    fig2.axes[1].set_title("MFCCs in frames")
+    ax4 = fig2.add_subplot(gs2[1,1])
+    ax4.imshow(mfccs[1:,:], aspect='auto', origin='lower', interpolation='none')
+    ax4.set_title("MFCCs in frames")
 
     fig2.show()
 
@@ -119,6 +284,10 @@ def main_mfcc(args):
     plt.show() # unnecessary if you started "ipython --pylab"
 
 def main_danceability(args):
+    """main_danceability
+
+    Compute the danceability feature over input waveform and plot it
+    """
     audio = loadaudio(args)
     
     # create the pool and the necessary algorithms
@@ -157,7 +326,7 @@ def main_danceability(args):
     # write result to file
     # estd.YamlOutput(filename = args.file + '.features.yaml')(aggrpool)
 
-    fig = makefig(rows = 2, cols = 2)
+    fig, gs = makefig(rows = 2, cols = 2)
     ax = fig.axes
 
     ax[0].plot(pool['rhythm.danceability'])
@@ -165,8 +334,13 @@ def main_danceability(args):
     plt.show()
 
 def main_extractor(args):
+    """main_extractor
+
+    Compute the comprehensive extractor feature set over the input
+    waveform and dump the pickled result into a file
+    """
     audio = loadaudio(args)
-    
+
     frame = audio
 
     extr = estd.Extractor(
@@ -179,7 +353,8 @@ def main_extractor(args):
     #     dreal, ddfa = danceability(w(frame))
     #     print "d", dreal # , "frame", frame
     #     pool.add('rhythm.danceability', dreal)
-    
+
+    # compute feature of frame and put them into dict p
     p = extr(frame)
 
     pdict = {}
@@ -189,9 +364,21 @@ def main_extractor(args):
         #     print "{0: >20}: {1}".format(desc, p[desc])
         pdict[desc] = p[desc]
 
-    pickle.dump(pdict, open("data/music_features_%s.pkl" % (args.file.replace("/", "_"), ), "wb"))
+    pickle.dump(pdict, open("data/music_features_%s.pkl" % (util_filename_clean(args.file), ), "wb"))
 
+def util_filename_clean(filename):
+    # args.file.replace("/", "_")
+    filename_1 = re.sub(r'[/\. ]', r'_', filename)
+    filename_2 = filename.replace("/", "_")
+    ret = filename_1
+    print "util_filename_clean ret = %s" % (ret, )
+    return ret
+    
 def main_extractor_pickle_plot(args):
+    """main_extractor_pickle_plot
+
+    Load a precomputed pickled feature dictionary and plot it
+    """
     from matplotlib import rcParams
     rcParams['axes.titlesize'] = 7
     rcParams['axes.labelsize'] = 6
@@ -221,6 +408,11 @@ def main_extractor_pickle_plot(args):
 
 
 def plot_features(pdict, feature_keys, group):
+    """util.plot_features
+
+    Plot all features 'feature_keys' from a feature group 'group' in
+    feature dict 'pdict'.
+    """
     numrows = int(np.sqrt(len(feature_keys)))
     numcols = int(np.ceil(len(feature_keys)/float(numrows)))
 
@@ -255,6 +447,13 @@ def plot_features(pdict, feature_keys, group):
     fig.show()
 
 def main_extractor_pickle_plot_timealigned(args):
+    """main_extractor_pickle_plot_timealigned
+
+    Load a precomputed pickled feature dictionary, temporally align
+    all of them in a matrix and a) plot them, b) compute dim-reducing
+    feature transforms (PCA, KPCA, tsne) on the multivariate feature
+    data and plot those.
+    """
     from matplotlib import rcParams
     rcParams['axes.titlesize'] = 7
     rcParams['axes.labelsize'] = 6
@@ -277,52 +476,144 @@ def main_extractor_pickle_plot_timealigned(args):
                 tmp = pdict[ftkey]
                 if len(tmp.shape) == 1:
                     tmp = tmp.reshape((numframes, 1))
-                st += (tmp, )
+                print ftkey, "sum(tmp)", np.sum(np.abs(tmp)), tmp.shape
+                if np.sum(np.abs(tmp)) < 1e9:
+                    st += (tmp, )
     # print "st", st
-    full_time_aligned = np.hstack(st)
+    full_time_aligned_raw = np.hstack(st)
+    print "full_time_aligned_raw", full_time_aligned_raw.shape
+    
+    # clean up
+    sum_raw = np.sum(np.abs(full_time_aligned_raw), axis = 0)
+    print "sum_raw", np.argmax(sum_raw), np.max(sum_raw)
+    var_raw = np.var(full_time_aligned_raw, axis = 0)
+    # print "var_raw", var_raw != 0
+    
+    # scale / whiten
+    full_time_aligned = scale(full_time_aligned_raw[...,var_raw != 0])
     print "full_time_aligned", full_time_aligned.shape
+    
+    # print "mean(full_time_aligned) = %s" % (np.mean(full_time_aligned, axis = 0), )
+    # print "var(full_time_aligned) = %s" % (np.var(full_time_aligned, axis = 0), )
 
+    plt.ion()
+    
+    fig2, gs2 = makefig(rows = 1, cols = 3)
+    fig2.show()
+    
+    mu = np.mean(full_time_aligned, axis = 0)
+    var = np.var(full_time_aligned, axis = 0)
+    ax = fig2.add_subplot(gs2[0,0])
+    ax.plot(mu, "bo", alpha = 0.5)
+    ax.plot(var, "go", alpha = 0.5)
+    # ax.plot(mu + var, "go", alpha = 0.5)
+    # ax.plot(mu - var, "go", alpha = 0.5)
+
+    ax2 = fig2.add_subplot(gs2[0,1])
+    ax2.plot(full_time_aligned_raw)
+    ax3 = fig2.add_subplot(gs2[0,2])
+    ax3.plot(full_time_aligned)
+    
+    plt.draw()
+    plt.pause(1e-9)
+    
     # reduction
-    numcomps = 3
+    numcomps = 5
+
+    def decomp(X, algo = 'pca', numcomps = 3, datasig = 'data/ep1_wav'):
+        
+        filename_decomp = datasig + "_" + algo + ".npy"
+        print "filename_decomp", filename_decomp
+
+        TF = {
+            'pca': PCA(n_components = numcomps, whiten = True),
+            'kpca': KernelPCA(kernel="rbf", degree=5, fit_inverse_transform=True, gamma=10, n_components = numcomps),
+            # 'tsne': TSNE(n_components=numcomps, random_state=0, verbose = 1),
+            'sfa': SFA(numcomps = numcomps, numexps = 3),
+            }
+            
+        if os.path.exists(filename_decomp):
+            # load precomputed result
+            X_ = np.load(filename_decomp)
+        else:
+            # compute
+            # pca
+            # pca   = PCA(n_components = numcomps)
+            print "Fitting with algo = %s" % (algo, )
+            X_ = TF[algo].fit_transform(X)
+            # X_pca.transform(full_time_aligned)
+            # print X_pca.transform(full_time_aligned).shape
+            np.save('%s' % (filename_decomp, ), X_)
+        return X_
+
+    datasig_ = util_filename_clean(args.file)
+    X_pca = decomp(X = full_time_aligned, algo = 'pca', numcomps = numcomps, datasig = datasig_)
+    # X_kpca = decomp(X = X_pca, algo = 'kpca', numcomps = numcomps, datasig = datasig_)
+    # X_tsne = decomp(X = X_pca, algo = 'tsne', numcomps = numcomps, datasig = datasig_)
+    # X_sfa = decomp(X = X_pca, algo = 'sfa', numcomps = numcomps, datasig = datasig_)
+    X_kpca = decomp(X = full_time_aligned, algo = 'kpca', numcomps = numcomps, datasig = datasig_)
+    # X_tsne = decomp(X = full_time_aligned, algo = 'tsne', numcomps = numcomps, datasig = datasig_)
+    X_sfa = decomp(X = full_time_aligned, algo = 'sfa', numcomps = numcomps, datasig = datasig_)
+
+    # print "X_pca", X_pca.shape
     
     # pca
-    from sklearn.decomposition import PCA, KernelPCA
-    pca   = PCA(n_components = numcomps)
-    print "fitting pca"
-    X_pca = pca.fit_transform(full_time_aligned)
-    # X_pca.transform(full_time_aligned)
-    # print X_pca.transform(full_time_aligned).shape
+    # from sklearn.decomposition import PCA, KernelPCA
+    # pca   = PCA(n_components = numcomps)
+    # print "fitting pca"
+    # X_pca = pca.fit_transform(full_time_aligned)
+    # # X_pca.transform(full_time_aligned)
+    # # print X_pca.transform(full_time_aligned).shape
+    # np.save('%s', X_pca)
 
-    # kernel PCA
-    kpca = KernelPCA(
-        kernel="rbf", degree=5, fit_inverse_transform=True,
-        gamma=10,
-        n_components = numcomps)
-    print "fitting kpca"
-    X_kpca = kpca.fit_transform(full_time_aligned)
+    # # kernel PCA
+    # kpca = KernelPCA(
+    #     kernel="rbf", degree=5, fit_inverse_transform=True,
+    #     gamma=10,
+    #     n_components = numcomps)
+    # print "fitting kpca"
+    # X_kpca = kpca.fit_transform(full_time_aligned)
 
-    # tsne
-    from sklearn.manifold import TSNE
-    tsne = TSNE(n_components=numcomps, random_state=0)
-    np.set_printoptions(suppress=True)
-    print "fitting tsne"
-    X_tsne = tsne.fit_transform(full_time_aligned)
-
+    # # tsne
+    # from sklearn.manifold import TSNE
+    # tsne = TSNE(n_components=numcomps, random_state=0)
+    # np.set_printoptions(suppress=True)
+    # print "fitting tsne"
+    # X_tsne = tsne.fit_transform(full_time_aligned)
 
     # plot
-    fig = plt.figure()
-    gs = GridSpec(numcomps, 3)
+    fig, gs = makefig(numcomps, 3, title = '%s - pca, kpca, tsne' % (args.file, ), add_subplots = False)
+    # fig.suptitle('pca, kpca, tsne')
+    # gs = GridSpec(numcomps, 3)
     
     for i in range(numcomps):
         ax = fig.add_subplot(gs[i,0])
         ax.plot(X_pca[:,i])
+        if i == 0: ax.set_title('PCA')
+        ax.set_ylabel('c_%d' % (i, ))
+        if i == (numcomps-1): ax.set_xlabel('t')
+
 
         ax = fig.add_subplot(gs[i,1])
         ax.plot(X_kpca[:,i])
+        if i == 0: ax.set_title('KPCA')
+        ax.set_ylabel('c_%d' % (i, ))
+        if i == (numcomps-1): ax.set_xlabel('t')
         
+        # ax = fig.add_subplot(gs[i,2])
+        # ax.plot(X_tsne[:,i])
+        # if i == 0: ax.set_title('TSNE')
+        # ax.set_ylabel('c_%d' % (i, ))
+        # if i == (numcomps-1): ax.set_xlabel('t')
+            
         ax = fig.add_subplot(gs[i,2])
-        ax.plot(X_tsne[:,i])
+        ax.plot(X_sfa[:,i])
+        if i == 0: ax.set_title('SFA')
+        ax.set_ylabel('c_%d' % (i, ))
+        if i == (numcomps-1): ax.set_xlabel('t')
         # ax.set_s
+
+    plt.ioff()
     plt.show()
     
     # tsne
@@ -353,7 +644,7 @@ def main_extractor_pickle_plot_timealigned(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--file", help="Input file [data/ep1.wav]", type = str, default = "data/ep1.wav")
-    parser.add_argument("-fsl", "--frame-size-low-level", help="Framesize for low-level features [20248]", type = int, default = 2048)
+    parser.add_argument("-fsl", "--frame-size-low-level", help="Framesize for low-level features [2048]", type = int, default = 2048)
     parser.add_argument("-m", "--mode", help="Program mode [mfcc]: mfcc, danceability, extractor, extractor_plot", type = str, default = "mfcc")
     parser.add_argument("-sr", "--samplerate", help="Sample rate to use [44100]", type = int, default = 44100)
 
@@ -361,6 +652,8 @@ if __name__ == "__main__":
 
     if args.mode == "mfcc":
         main_mfcc(args)
+    elif args.mode == "simple":
+        main_simple(args)
     elif args.mode == "danceability":
         main_danceability(args)
     elif args.mode == "extractor":
