@@ -1,3 +1,6 @@
 [submodule "adversarial/gan-intro"]
 	path = adversarial/gan-intro
 	url = git@github.com:AYLIEN/gan-intro.git
+[submodule "adversarial/pytorch-generative-adversarial-networks"]
+	path = adversarial/pytorch-generative-adversarial-networks
+	url = git@github.com:devnag/pytorch-generative-adversarial-networks.git
