@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 # goal area / total area ratios
 # budget
 # space dimensions
-B = 10000
+B = 1000
 size_space = 1.0
 size_goal = 0.1
 
@@ -23,8 +23,8 @@ dims = np.linspace(1, 7, 7).astype(int)
 print dims
 
 for dim in dims:
-    vol_goal = (size_goal**dim) * np.pi
     vol_space = size_space**dim
+    vol_goal = (size_goal**dim) * vol_space # np.pi * 
     p = np.log(vol_goal/vol_space)
     print "p_%d = %f" % (dim, np.exp(p))
     ps.append(p)
@@ -39,7 +39,7 @@ for i, dim in enumerate(dims):
     B_req = B * (1-np.exp(p))
     print "B_req", B_req
     B_reqs.append(B_req)
-    p_fail = np.random.binomial(n = B, p = 1 - np.exp(p), size = 10000)
+    p_fail = np.random.binomial(n = B, p = 1 - np.exp(p), size = B)
     p_fail_dim.append(p_fail)
 
 p_fail_dim = np.array(p_fail_dim)
