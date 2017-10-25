@@ -54,12 +54,18 @@ def main_view(args):
     data_raw_ = [d.lstrip() for d in data_raw_str.split(",")[:-1]]
     print "data_raw_", data_raw_
 
+    # init graph
     G = nx.MultiDiGraph()
-    
+
+    # add nodes
     for i, item in enumerate(data_raw_):
         kwargs = {'label': item}
         G.add_node(i, **kwargs)
 
+    # add edges
+    # FIXME: how to get good edges algorithmically?
+        
+    # draw the graph
     nx.draw_networkx(
         G, node_color = 'k', alpha = 0.33,
         labels = dict([(n, G.node[n]['label']) for n in G.nodes()]))
