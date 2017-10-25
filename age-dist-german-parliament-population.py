@@ -1,7 +1,8 @@
 # coding: utf-8
 
-data = np.genfromtxt('/home/lib/projects/zerotrust/bundestag-WP18.csv', delimiter=',', skip_header=1)
-df = pd.read_csv('/home/lib/projects/zerotrust/bundestag-WP18.csv', sep=',')
+data = np.genfromtxt('data/bundestag-WP18.csv', delimiter=',', skip_header=1)
+df = pd.read_csv('data/bundestag-WP18.csv', sep=',')
+
 plt.ion()
 df.plot()
 plt.hist(data[:,1])
