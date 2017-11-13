@@ -333,6 +333,26 @@ def main_danceability(args):
 
     plt.show()
 
+def main_segment(args):
+
+    audio = loadaudio(args)
+
+    frame = audio
+
+    w = estd.Windowing(type = 'hamming')
+    spectrum = estd.Spectrum()  # FFT() would return the complex FFT, here we just want the magnitude spectrum
+    # mfcc = estd.MFCC()
+    sbic = estd.SBic(spectrum)
+
+    # print "w", repr(w)
+    # print "spectrum", repr(spectrum)
+    # print "mfcc", repr(mfcc)
+
+    # frame = audio[int(0.2*args.samplerate) : int(0.2*args.samplerate) + 1024]
+    # print "frame.shape", frame.shape
+    # spec = spectrum(w(frame))
+    # mfcc_bands, mfcc_coeffs = mfcc(spec)
+    
 def main_extractor(args):
     """main_extractor
 
@@ -656,6 +676,8 @@ if __name__ == "__main__":
         main_simple(args)
     elif args.mode == "danceability":
         main_danceability(args)
+    elif args.mode == "segment":
+        main_segment(args)
     elif args.mode == "extractor":
         main_extractor(args)
     elif args.mode == "extractor_plot":
