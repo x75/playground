@@ -335,14 +335,22 @@ def main_danceability(args):
 
 def main_segment(args):
 
+
+    frameSize = args.frame_size_low_level
+    hopSize = frameSize / 2
+    if args.hop_size_low_level is not None:
+        hopSize = args.hop_size_low_level
+    
     audio = loadaudio(args)
 
-    frame = audio
+    # frame = audio
 
     w = estd.Windowing(type = 'hamming')
     spectrum = estd.Spectrum()  # FFT() would return the complex FFT, here we just want the magnitude spectrum
-    # mfcc = estd.MFCC()
-    sbic = estd.SBic(spectrum)
+    mfcc = estd.MFCC(numberBands = 40, numberCoefficients = 10, highFrequencyBound = 10000, logType = 'dbamp', normalize = 'unit_sum')
+    # sbic = estd.SBic(cpw = 1.5, inc1 = 60, inc2 = 20, minLength = 10, size1 = 300, size2 = 200)
+    sbic = estd.SBic(cpw = 0.05, inc1 = 60, inc2 = 20, minLength = 120, size1 = 300, size2 = 200)
+    # sbic = estd.SBic(cpw = 0.3, inc1 = 20, inc2 = 10, minLength = 10, size1 = 100, size2 = 70)
 
     # print "w", repr(w)
     # print "spectrum", repr(spectrum)
@@ -352,6 +360,59 @@ def main_segment(args):
     # print "frame.shape", frame.shape
     # spec = spectrum(w(frame))
     # mfcc_bands, mfcc_coeffs = mfcc(spec)
+    
+    pool = e.Pool()
+
+    numframes = 0
+    specgram = []
+    mfcc_bandsgram = []
+    mfcc_coefsgram = []
+    for frame in estd.FrameGenerator(audio, frameSize = frameSize, hopSize = hopSize, startFromZero=True):
+        # mfcc_bands, mfcc_coeffs = mfcc(spectrum(w(frame)))
+        # pool.add('lowlevel.mfcc', mfcc_coeffs)
+        # pool.add('lowlevel.mfcc_bands', mfcc_bands)
+        # print "frame", frame.shape
+        # frame = np.atleast_2d(frame)
+        spec = spectrum(w(frame))
+        specgram.append(spec)
+        mfcc_bands, mfcc_coefs = mfcc(spec)
+        mfcc_bandsgram.append(mfcc_bands)
+        mfcc_coefsgram.append(mfcc_coefs)
+
+        numframes += 1
+
+    print "crunched %d frames of shape %s" % (numframes, frame.shape)
+    specgram = np.array(specgram).T
+    mfcc_bandsgram = np.array(mfcc_bandsgram).T
+    mfcc_coefsgram = np.array(mfcc_coefsgram).T
+    print "segmenting specgram", specgram.shape
+    print "segmenting mfcc_bandsgram", mfcc_bandsgram.shape
+    print "segmenting mfcc_coefsgram", mfcc_coefsgram.shape
+    # segidx = sbic(specgram)
+    # segidx = sbic(mfcc_bandsgram)
+    segidx = sbic(mfcc_coefsgram)
+    pool.add('segment.sbic', segidx)
+
+    print "segments frame indices = %s" % (pool['segment.sbic'], )
+    print "         framesize = %d, hopsize = %d" % (frameSize, hopSize)
+    print "segments time indices = %s" % ((pool['segment.sbic'] * hopSize) / args.samplerate, )
+
+    fig = plt.figure()
+    fig.suptitle("part segmentation for %s" % (args.file, ))
+    # ax1 = fig.add_subplot(3, 1,1)
+    # ax1.pcolormesh(specgram)
+    # # for segidx in pool['segment.sbic']:
+    # ax1.plot(pool['segment.sbic'], specgram.shape[0]/2 * np.ones_like(pool['segment.sbic']), 'ro')
+    # ax2 = fig.add_subplot(3, 1,2)
+    # ax2.pcolormesh(mfcc_bandsgram)
+    # ax2.plot(pool['segment.sbic'], mfcc_bandsgram.shape[0]/2 * np.ones_like(pool['segment.sbic']), 'ro')
+    # ax3 = fig.add_subplot(3, 1,3)
+    ax3 = fig.add_subplot(1, 1, 1)
+    ax3.pcolormesh(mfcc_coefsgram)
+    ax3.plot(pool['segment.sbic'], mfcc_coefsgram.shape[0]/2 * np.ones_like(pool['segment.sbic']), 'ro')
+
+    fig.show()
+    plt.show()
     
 def main_extractor(args):
     """main_extractor
@@ -662,9 +723,11 @@ def main_extractor_pickle_plot_timealigned(args):
     
         
 if __name__ == "__main__":
+    default_frame_size_low_level = 2048
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--file", help="Input file [data/ep1.wav]", type = str, default = "data/ep1.wav")
-    parser.add_argument("-fsl", "--frame-size-low-level", help="Framesize for low-level features [2048]", type = int, default = 2048)
+    parser.add_argument("-fsl", "--frame-size-low-level", help="Framesize for low-level features [%d]" % (default_frame_size_low_level,), type = int, default = default_frame_size_low_level)
+    parser.add_argument("-hsl", "--hop-size-low-level", help="Hopsize for low-level features, [frame-size-low-level/2]", type = int, default = None)
     parser.add_argument("-m", "--mode", help="Program mode [mfcc]: mfcc, danceability, extractor, extractor_plot", type = str, default = "mfcc")
     parser.add_argument("-sr", "--samplerate", help="Sample rate to use [44100]", type = int, default = 44100)
 
