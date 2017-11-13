@@ -720,15 +720,37 @@ def main_extractor_pickle_plot_timealigned(args):
     
     # plt.show()
 
-    
+
+def main_print_file_info(args):
+    import os
+    import taglib
+
+    print "print_file_info: walking %s directory" % (args.datadir, )
+    for datadir_item in os.walk(args.datadir):
+        # print "    type(f) = %s\n    f = %s\n" % (type(f), f[0], ),
+        for datafile in datadir_item[2]:
+            datafile_path = '%s/%s' % (datadir_item[0], datafile)
+            tlf = taglib.File(datafile_path)
+            tlf_type = tlf.path.split('.')[-1]
+            if tlf_type != 'mp3': continue
+            if tlf.length < 60.0: continue
+            
+            # print "        datafile = %s" % (datafile, )
+            # print "            tags = %s" % tlf.tags
+            #       path  type  numframes
+            print "    ('%s', '%s', %d, %d)," % (tlf.path, tlf_type, tlf.length * tlf.sampleRate, tlf.sampleRate)
+            
         
 if __name__ == "__main__":
+    modes = ['mfcc', 'danceability', 'extractor', 'extractor_plot', 'simple', 'segment', 'extractor_plot_timealigned', 'print_file_info']
+    modes.sort()
     default_frame_size_low_level = 2048
     parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--datadir", help="Data directory [.]", type = str, default = ".")
     parser.add_argument("-f", "--file", help="Input file [data/ep1.wav]", type = str, default = "data/ep1.wav")
     parser.add_argument("-fsl", "--frame-size-low-level", help="Framesize for low-level features [%d]" % (default_frame_size_low_level,), type = int, default = default_frame_size_low_level)
     parser.add_argument("-hsl", "--hop-size-low-level", help="Hopsize for low-level features, [frame-size-low-level/2]", type = int, default = None)
-    parser.add_argument("-m", "--mode", help="Program mode [mfcc]: mfcc, danceability, extractor, extractor_plot", type = str, default = "mfcc")
+    parser.add_argument("-m", "--mode", help="Program mode [mfcc]: %s" % ", ".join(modes), type = str, default = "mfcc")
     parser.add_argument("-sr", "--samplerate", help="Sample rate to use [44100]", type = int, default = 44100)
 
     args = parser.parse_args()
@@ -747,4 +769,6 @@ if __name__ == "__main__":
         main_extractor_pickle_plot(args)
     elif args.mode == "extractor_plot_timealigned":
         main_extractor_pickle_plot_timealigned(args)
+    elif args.mode == "print_file_info":
+        main_print_file_info(args)
     
