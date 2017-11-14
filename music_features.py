@@ -740,7 +740,53 @@ def main_print_file_info(args):
             #       path  type  numframes
             print "    ('%s', '%s', %d, %d)," % (tlf.path, tlf_type, tlf.length * tlf.sampleRate, tlf.sampleRate)
             
+def main_mix(args):
+    from pydub import AudioSegment
+    f = open('trk_seq_559.txt', 'r')
+    trk_seq_raw = "".join(f.readlines())
+
+
+    gv = {}
+    lv = {}
+    code = compile(trk_seq_raw, "<string>", "exec")
+    exec(code, gv, lv)
+
+    trk_seq = lv['trk_seq']
+
+    # mix = AudioSegment.empty()
+
+    silence_thresh = -40
+    
+    print "trk_seq"
+    for i, tup in enumerate(trk_seq):
+        print "trk", i, tup[0], tup[1]
         
+        if i < 1:
+            print "just appending"
+            mix = AudioSegment.from_mp3(tup[1]) # .strip_silence()
+            print " mix dur", mix.duration_seconds
+            mix = mix.strip_silence(silence_len = 1500, silence_thresh = silence_thresh, padding = 60)
+            print " mix dur", mix.duration_seconds
+        
+        else:
+            xfadetime = np.random.randint(1500, 3000)
+            print "appending with xfade = %s ms" % (xfadetime, )
+            trk_ = AudioSegment.from_mp3(tup[1])
+            print "trk_ dur", trk_.duration_seconds
+            trk_ = trk_.strip_silence(silence_len = 1500, silence_thresh = silence_thresh, padding = 60)
+            print "trk_ dur", trk_.duration_seconds
+            mix = mix.append(trk_, crossfade = xfadetime)
+            
+        print " mix dur", mix.duration_seconds
+
+    mix_fin = mix.fade_in(1000).fade_out(1000)
+    
+    mix_fin.export(
+        "mix_fin.mp3",
+        format = "mp3",
+        bitrate = '320k',
+        tags={'artist': 'farmersmanual (DJ)', 'title': 'the mix', 'album': 'fm playlist selection for sorbie rd. @subcity radio', 'comments': 'This album is awesome!'})
+    
 if __name__ == "__main__":
     modes = ['mfcc', 'danceability', 'extractor', 'extractor_plot', 'simple', 'segment', 'extractor_plot_timealigned', 'print_file_info']
     modes.sort()
@@ -771,4 +817,6 @@ if __name__ == "__main__":
         main_extractor_pickle_plot_timealigned(args)
     elif args.mode == "print_file_info":
         main_print_file_info(args)
+    elif args.mode == "mix":
+        main_mix(args)
     
