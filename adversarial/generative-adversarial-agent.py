@@ -1,5 +1,7 @@
 """generative adversarial agent (gaa)
 
+.. moduleauthor:: Oswald Berthold
+
 quick sketch
 """
 
