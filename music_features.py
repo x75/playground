@@ -9,7 +9,7 @@ comprehensive feature-gram over a given chunk of audio.
 """
 
 # stdlib
-import argparse, pickle, re, os
+import argparse, pickle, re, os, sys, copy
 
 # numpy/scipy
 import numpy as np
@@ -25,6 +25,11 @@ import mdp
 # essentia
 import essentia as e
 import essentia.standard as estd
+
+import logging
+from common import get_module_logger
+
+logger = get_module_logger(modulename = 'music_features', loglevel = logging.DEBUG)
 
 # from essentia.standard import *
 # import essentia.streaming
@@ -334,22 +339,89 @@ def main_danceability(args):
     plt.show()
 
 def main_segment(args):
+    """perform sgementation of a piece of audio
 
+    The idea is to identify different parts in a recording and
+    annotate them for editing further down the pipeline.
 
+    TODO
+     - framesize hierarchy/ pyramid
+     - pimp criteria with existing alternative criteria
+     - pimp criteria with our own predictability criteria
+     - clustering on spec frame pyramid
+     - recurrence plot on feature frames
+    """
+
+    # FFT framesize and hopsize parameters
     frameSize = args.frame_size_low_level
     hopSize = frameSize / 2
     if args.hop_size_low_level is not None:
         hopSize = args.hop_size_low_level
-    
-    audio = loadaudio(args)
 
+    # load the audio
+    audio = loadaudio(args)
     # frame = audio
 
+    # init window func
     w = estd.Windowing(type = 'hamming')
+    # init spectrum
     spectrum = estd.Spectrum()  # FFT() would return the complex FFT, here we just want the magnitude spectrum
-    mfcc = estd.MFCC(numberBands = 40, numberCoefficients = 10, highFrequencyBound = 10000, logType = 'dbamp', normalize = 'unit_sum')
+
+
+    # feature operators
+    features = {
+        'BarkBands': {
+            'op': estd.BarkBands,
+            'opargs': {
+                'numberBands': 28,
+            },
+            'opout': [0],
+        },
+        'ERBBands': {
+            'op': estd.ERBBands,
+            'opargs': {
+                'numberBands': 40,
+            },
+            'opout': [0],
+        },
+        'MFCC':      {
+            'op': estd.MFCC,
+            'opargs': {
+                'numberBands': 40, 'numberCoefficients': 10, 'highFrequencyBound': 10000, 'logType': 'dbamp', 'normalize': 'unit_sum',
+            },
+            'opout': [1],
+        },
+        'GFCC':      {
+            'op': estd.GFCC,
+            'opargs': {
+                'numberBands': 40, 'numberCoefficients': 10, 'highFrequencyBound': 10000, 'logType': 'dbamp',
+            },
+            'opout': [1],
+        },
+        'LPC':      {
+            'op': estd.LPC,
+            'opargs': {
+                'order': 10, 'type': 'regular',
+            },
+            'opout': [1],
+        },
+        'MelBands':  {
+            'op': estd.MelBands,
+            'opargs': {'numberBands': 40},
+            'opout': [0],
+        },
+    }
+    for fk, fv in features.items():
+        features[fk]['inst'] = fv['op'](**fv['opargs'])
+        features[fk]['gram'] = []
+        
+        # # init mfcc features
+        # mfcc = estd.MFCC()
+    
+    # segmentation operator
     # sbic = estd.SBic(cpw = 1.5, inc1 = 60, inc2 = 20, minLength = 10, size1 = 300, size2 = 200)
-    sbic = estd.SBic(cpw = 0.05, inc1 = 60, inc2 = 20, minLength = 120, size1 = 300, size2 = 200)
+    sbic = estd.SBic(cpw = 1.5, inc1 = 60, inc2 = 20, minLength = 80, size1 = 300, size2 = 200)
+    # sbic = estd.SBic(cpw = 0.05, inc1 = 60, inc2 = 20, minLength = 120, size1 = 300, size2 = 200)
     # sbic = estd.SBic(cpw = 0.3, inc1 = 20, inc2 = 10, minLength = 10, size1 = 100, size2 = 70)
 
     # print "w", repr(w)
@@ -365,8 +437,9 @@ def main_segment(args):
 
     numframes = 0
     specgram = []
-    mfcc_bandsgram = []
-    mfcc_coefsgram = []
+    # mfcc_bandsgram = []
+    # mfcc_coefsgram = []
+    logger.debug('computing spec and features for audio of size %s', audio.shape)
     for frame in estd.FrameGenerator(audio, frameSize = frameSize, hopSize = hopSize, startFromZero=True):
         # mfcc_bands, mfcc_coeffs = mfcc(spectrum(w(frame)))
         # pool.add('lowlevel.mfcc', mfcc_coeffs)
@@ -375,44 +448,86 @@ def main_segment(args):
         # frame = np.atleast_2d(frame)
         spec = spectrum(w(frame))
         specgram.append(spec)
-        mfcc_bands, mfcc_coefs = mfcc(spec)
-        mfcc_bandsgram.append(mfcc_bands)
-        mfcc_coefsgram.append(mfcc_coefs)
+
+        for fk, fv in features.items():
+            # logger.debug('computing feature %s', fk)
+            fspec_ = fv['inst'](spec)
+            # logger.debug('   type(fspec_) = %s', type(fspec_))
+            fspec = fspec_
+            
+            if type(fspec_) is tuple:
+                fspec = fspec_[fv['opout'][0]]
+
+            fv['gram'].append(fspec)
+            # mfcc_bands, mfcc_coefs = mfcc(spec)
+            # mfcc_bandsgram.append(mfcc_bands)
+            # mfcc_coefsgram.append(mfcc_coefs)
 
         numframes += 1
 
-    print "crunched %d frames of shape %s" % (numframes, frame.shape)
+    print "    crunched %d frames of shape %s" % (numframes, frame.shape)
+    # sys.exit(0)
+    
     specgram = np.array(specgram).T
-    mfcc_bandsgram = np.array(mfcc_bandsgram).T
-    mfcc_coefsgram = np.array(mfcc_coefsgram).T
-    print "segmenting specgram", specgram.shape
-    print "segmenting mfcc_bandsgram", mfcc_bandsgram.shape
-    print "segmenting mfcc_coefsgram", mfcc_coefsgram.shape
-    # segidx = sbic(specgram)
-    # segidx = sbic(mfcc_bandsgram)
-    segidx = sbic(mfcc_coefsgram)
-    pool.add('segment.sbic', segidx)
+    logger.debug("    %s-gram = %s", 'spec', specgram.shape)
 
-    print "segments frame indices = %s" % (pool['segment.sbic'], )
-    print "         framesize = %d, hopsize = %d" % (frameSize, hopSize)
-    print "segments time indices = %s" % ((pool['segment.sbic'] * hopSize) / args.samplerate, )
+    for fk, fv in features.items():
+        fv['gram'] = np.array(fv['gram']).T
+        logger.debug("    %s-gram = %s", fk, fv['gram'].shape)
+        # mfcc_bandsgram = np.array(mfcc_bandsgram).T
+        # mfcc_coefsgram = np.array(mfcc_coefsgram).T
+        # print "segmenting mfcc_bandsgram", mfcc_bandsgram.shape
+        # print "segmenting mfcc_coefsgram", mfcc_coefsgram.shape
+        
+        # segidx = sbic(specgram)
+        # segidx = sbic(mfcc_bandsgram)
+        # segidx = sbic(mfcc_coefsgram)
+        fv['segidx'] = sbic(fv['gram'])
+        # pool.add('segment.sbic', segidx)
+        # logger.debug("    pool['segment.sbic'] = %s", pool['segment.sbic'])
+
+        
+        logger.debug("%s seg indices[frame] = %s" % (fk, fv['segidx'], ))
+        logger.debug("       indices[time]  = %s" % ((fv['segidx'] * hopSize) / args.samplerate, ))
+        logger.debug("       framesize = %d, hopsize = %d" % (frameSize, hopSize))
 
     fig = plt.figure()
-    fig.suptitle("part segmentation for %s" % (args.file, ))
+    fig.suptitle("part segmentation for %s" % (args.file.split('/')[-1], ))
+    fig.show()
+    gs = GridSpec(len(features), 1)
+
+    axi = 0
+    for fk, fv in features.items():
+        ax = fig.add_subplot(gs[axi])
+        ax.title.set_text(fk)
+        ax.title.set_position((0.1, 0.9))
+        ax.pcolormesh(fv['gram'])
+        ax.plot(fv['segidx'], fv['gram'].shape[0]/2 * np.ones_like(fv['segidx']), 'ro')
+        if axi < (len(features) - 1): # all but last axis
+            ax.set_xticklabels([])
+        else:
+            ax.set_xlabel('feature-gram, framesize = %d' % (args.frame_size_low_level, ))
+        axi += 1
     # ax1 = fig.add_subplot(3, 1,1)
     # ax1.pcolormesh(specgram)
-    # # for segidx in pool['segment.sbic']:
-    # ax1.plot(pool['segment.sbic'], specgram.shape[0]/2 * np.ones_like(pool['segment.sbic']), 'ro')
+    # # for segidx in fv['segidx']:
+    # ax1.plot(fv['segidx'], specgram.shape[0]/2 * np.ones_like(fv['segidx']), 'ro')
     # ax2 = fig.add_subplot(3, 1,2)
     # ax2.pcolormesh(mfcc_bandsgram)
-    # ax2.plot(pool['segment.sbic'], mfcc_bandsgram.shape[0]/2 * np.ones_like(pool['segment.sbic']), 'ro')
+    # ax2.plot(fv['segidx'], mfcc_bandsgram.shape[0]/2 * np.ones_like(fv['segidx']), 'ro')
     # ax3 = fig.add_subplot(3, 1,3)
-    ax3 = fig.add_subplot(1, 1, 1)
-    ax3.pcolormesh(mfcc_coefsgram)
-    ax3.plot(pool['segment.sbic'], mfcc_coefsgram.shape[0]/2 * np.ones_like(pool['segment.sbic']), 'ro')
+    
+    # ax3 = fig.add_subplot(1, 1, 1)
+    # ax3.pcolormesh(mfcc_coefsgram)
+    # ax3.plot(fv['segidx'], mfcc_coefsgram.shape[0]/2 * np.ones_like(fv['segidx']), 'ro')
 
-    fig.show()
-    plt.show()
+    plt.draw()
+    plt.pause(1e-9)
+
+    logger.debug('saving figure for %s' % (args.file, ))
+    fig.set_size_inches((12, 3 * len(features)))
+    fig.savefig('data/music_features/segment_%s.png' % (args.file.split('/')[-1]), dpi = 100, bbox_inches = 'tight')
+    logger.debug('done saving, next')
     
 def main_extractor(args):
     """main_extractor
@@ -786,21 +901,8 @@ def main_mix(args):
         format = "mp3",
         bitrate = '320k',
         tags={'artist': 'farmersmanual (DJ)', 'title': 'the mix', 'album': 'fm playlist selection for sorbie rd. @subcity radio', 'comments': 'This album is awesome!'})
-    
-if __name__ == "__main__":
-    modes = ['mfcc', 'danceability', 'extractor', 'extractor_plot', 'simple', 'segment', 'extractor_plot_timealigned', 'print_file_info']
-    modes.sort()
-    default_frame_size_low_level = 2048
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--datadir", help="Data directory [.]", type = str, default = ".")
-    parser.add_argument("-f", "--file", help="Input file [data/ep1.wav]", type = str, default = "data/ep1.wav")
-    parser.add_argument("-fsl", "--frame-size-low-level", help="Framesize for low-level features [%d]" % (default_frame_size_low_level,), type = int, default = default_frame_size_low_level)
-    parser.add_argument("-hsl", "--hop-size-low-level", help="Hopsize for low-level features, [frame-size-low-level/2]", type = int, default = None)
-    parser.add_argument("-m", "--mode", help="Program mode [mfcc]: %s" % ", ".join(modes), type = str, default = "mfcc")
-    parser.add_argument("-sr", "--samplerate", help="Sample rate to use [44100]", type = int, default = 44100)
 
-    args = parser.parse_args()
-
+def main_single(args):
     if args.mode == "mfcc":
         main_mfcc(args)
     elif args.mode == "simple":
@@ -820,3 +922,33 @@ if __name__ == "__main__":
     elif args.mode == "mix":
         main_mix(args)
     
+def main_files(args):
+
+    plt.ion()
+    
+    files = args.file[0]
+    for file in files:
+        logger.debug("running mode %s on file %s" % (args.mode, file))
+        args_ = copy.copy(args)
+        setattr(args_, 'file', file)
+        main_segment(args_)
+        
+    plt.ioff()
+    plt.show()
+    
+if __name__ == "__main__":
+    modes = ['mfcc', 'danceability', 'extractor', 'extractor_plot', 'simple', 'segment', 'extractor_plot_timealigned', 'print_file_info']
+    modes.sort()
+    default_frame_size_low_level = 2048
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--datadir", help="Data directory [.]", type = str, default = ".")
+    # parser.add_argument("-f", "--file", help="Input file [data/ep1.wav]", type = str, default = "data/ep1.wav")
+    parser.add_argument("-f", "--file", action = 'append', dest = 'file', help="Input file(s) []", nargs = '+', default = [])
+    parser.add_argument("-fsl", "--frame-size-low-level", help="Framesize for low-level features [%d]" % (default_frame_size_low_level,), type = int, default = default_frame_size_low_level)
+    parser.add_argument("-hsl", "--hop-size-low-level", help="Hopsize for low-level features, [frame-size-low-level/2]", type = int, default = None)
+    parser.add_argument("-m", "--mode", help="Program mode [mfcc]: %s" % ", ".join(modes), type = str, default = "mfcc")
+    parser.add_argument("-sr", "--samplerate", help="Sample rate to use [44100]", type = int, default = 44100)
+
+    args = parser.parse_args()
+
+    main_files(args)
