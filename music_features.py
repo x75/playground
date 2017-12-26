@@ -837,6 +837,12 @@ def main_extractor_pickle_plot_timealigned(args):
 
 
 def main_print_file_info(args):
+    """Walk the data directory and print path, type, length (samples),
+    samplerate for mp3 files.
+
+    Computes the input file for end-to-start feature matching mixing
+    algorithm used in farmers manual's guest mix @sorbierd 2017
+    """
     import os
     import taglib
 
@@ -856,6 +862,12 @@ def main_print_file_info(args):
             print "    ('%s', '%s', %d, %d)," % (tlf.path, tlf_type, tlf.length * tlf.sampleRate, tlf.sampleRate)
             
 def main_mix(args):
+    """Render the final mix into a single bitstream file from ordered
+    track list using pydub.
+
+    Computes the output file for end-to-start feature matching mixing
+    algorithm used in farmers manual's guest mix @sorbierd 2017
+    """
     from pydub import AudioSegment
     f = open('trk_seq_559.txt', 'r')
     trk_seq_raw = "".join(f.readlines())
