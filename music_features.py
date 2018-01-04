@@ -869,7 +869,10 @@ def main_mix(args):
     algorithm used in farmers manual's guest mix @sorbierd 2017
     """
     from pydub import AudioSegment
-    f = open('trk_seq_559.txt', 'r')
+    # f = open('trk_seq_559.txt', 'r')
+    # print "args.file", args.file
+    assert type(args.file) is str, "main_mix assumes args.file to be singular string, not %s" % (type(args.file), )
+    f = open(args.file, 'r')
     trk_seq_raw = "".join(f.readlines())
 
 
@@ -933,6 +936,8 @@ def main_single(args):
         main_print_file_info(args)
     elif args.mode == "mix":
         main_mix(args)
+    else:
+        logger.error('Unknown mode %s', args.mode)
     
 def main_files(args):
 
@@ -943,7 +948,8 @@ def main_files(args):
         logger.debug("running mode %s on file %s" % (args.mode, file))
         args_ = copy.copy(args)
         setattr(args_, 'file', file)
-        main_segment(args_)
+        # main_segment(args_)
+        main_single(args_)
         
     plt.ioff()
     plt.show()
