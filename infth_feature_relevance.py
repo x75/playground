@@ -1,6 +1,6 @@
-"""Little demo on how to use information theoretic measures for assessing the relevance of elements of a feature set for a given
+"""Little demo on how to use information theoretic measures for
+assessing the relevance of elements of a feature set for a given
 classification or regression task"""
-
 
 # 2016,2017 oswald berthold
 
@@ -32,12 +32,14 @@ from im.im_quadrotor_plot import plot_infth_multi_image
 class InfthDataSets(object):
     
     def __init__(self):
-        # self.datasets = [self.get_data_toy_rec2pol, self.get_data_toy_exp]
+        self.datasets = [self.get_data_toy_rec2pol, self.get_data_toy_exp]
         # self.datasets = [self.get_data_toy_rec2pol_noise, self.get_data_toy_exp_noise]
         # self.datasets = [self.get_data_ratslam_conv3, self.get_data_ratslam_rsf]
         # self.datasets = [self.get_data_spider_thin_15, self.get_data_spider_thick_15]
         # self.datasets = [self.get_data_ratslam_rsf]
-        self.datasets = [self.get_data_ratslam_conv3, self.get_data_ratslam_rsf]
+        
+        # self.datasets = [self.get_data_ratslam_conv3, self.get_data_ratslam_rsf]
+        
         # self.datasets = [get_data_toy_rec2pol, get_data_toy_exp, get_data_ratslam_conv3, get_data_ratslam_rsf, get_data_mfcc_motors, get_data_wave_motors]
     
     def get_data_toy_rec2pol(self, numsteps = 1000):
@@ -305,14 +307,15 @@ class InfthMeasures(object):
 
     def infth_linear_probe(self, data):
         """learn classifier / regressor probe"""
-        from sklearn import linear_model
         import sklearn
+        from sklearn import linear_model
         from sklearn import kernel_ridge
+        from sklearn.model_selection import train_test_split
         
         lm = linear_model.Ridge(alpha = 0.0)
 
 
-        X_train, X_test, y_train, y_test = sklearn.cross_validation.train_test_split(data["X"], data["Y"], random_state=1)
+        X_train, X_test, y_train, y_test = train_test_split(data["X"], data["Y"], random_state=1)
 
         # pl.subplot(211)
         # pl.plot(data["Y"])
