@@ -90,3 +90,7 @@ ENV/
 
 *~
 
+# project custom stuff
+data/hebbslam
+data/*.wav
+data/*.yaml
