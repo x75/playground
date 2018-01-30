@@ -92,5 +92,11 @@ ENV/
 
 # project custom stuff
 data/hebbslam
+data/music_features
 data/*.wav
 data/*.yaml
+data/*.pkl
+data/*.npy
+data/*.pdf
+
+
