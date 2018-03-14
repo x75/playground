@@ -419,8 +419,9 @@ def main_segment(args):
         # mfcc = estd.MFCC()
     
     # segmentation operator
+    sbic = estd.SBic(cpw = args.complexity_penalty_weight, inc1 = 60, inc2 = 20, minLength = args.minlength, size1 = 300, size2 = 200)
     # sbic = estd.SBic(cpw = 1.5, inc1 = 60, inc2 = 20, minLength = 10, size1 = 300, size2 = 200)
-    sbic = estd.SBic(cpw = 1.5, inc1 = 60, inc2 = 20, minLength = 80, size1 = 300, size2 = 200)
+    # sbic = estd.SBic(cpw = 1.5, inc1 = 60, inc2 = 20, minLength = 80, size1 = 300, size2 = 200)
     # sbic = estd.SBic(cpw = 0.05, inc1 = 60, inc2 = 20, minLength = 120, size1 = 300, size2 = 200)
     # sbic = estd.SBic(cpw = 0.3, inc1 = 20, inc2 = 10, minLength = 10, size1 = 100, size2 = 70)
 
@@ -959,6 +960,8 @@ if __name__ == "__main__":
     modes.sort()
     default_frame_size_low_level = 2048
     parser = argparse.ArgumentParser()
+    parser.add_argument("-cpw", "--complexity-penalty-weight", help="SBic param cpw [1.5]", type=float, default=1.5)
+    parser.add_argument("-ml", "--minlength", help="SBic param minlength [10]", type=int, default=10)
     parser.add_argument("-d", "--datadir", help="Data directory [.]", type = str, default = ".")
     # parser.add_argument("-f", "--file", help="Input file [data/ep1.wav]", type = str, default = "data/ep1.wav")
     parser.add_argument("-f", "--file", action = 'append', dest = 'file', help="Input file(s) []", nargs = '+', default = [])
