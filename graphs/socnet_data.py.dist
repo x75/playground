@@ -1,0 +1,35 @@
+# list of tuples
+data = [
+    (0, {
+        'name': 'Hans',
+        'linktypes': ['family', 'friend'],
+    }),
+    (1, {
+        'name': 'Erna',
+        'linktypes': ['family', 'friend'],
+    }),
+    (2, {
+        'name': 'Sabine',
+        'linktypes': ['family', 'friend'],
+    }),
+    (3, {
+        'name': 'Werner',
+        'linktypes': ['family', 'friend'],
+    }),
+    (4, {
+        'name': 'Egon',
+        'linktypes': ['friend', 'research', 'business'],
+    }),
+    (5, {
+        'name': 'Ulla',
+        'linktypes': ['friend', 'research', 'business'],
+    }),
+    (6, {
+        'name': 'Susi',
+        'linktypes': ['friend', 'research', 'business'],
+    }),
+    (7, {
+        'name': 'Orm',
+        'linktypes': ['friend', 'research', 'business'],
+    }),
+]
