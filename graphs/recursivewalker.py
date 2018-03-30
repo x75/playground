@@ -85,10 +85,15 @@ def h_geturlsfromtabs(*args, **kwargs):
     arg = args[0]
     if True:
         if type(arg) not in [dict, OrderedDict]: return None
-        if 'window' in arg: print (arg)
+        if 'window' in arg: print ('window = %s' % (arg,))
         # if arg.count('url') > 0:
         if 'url' in arg:
-            print('url: %s' % (arg, ))
+            # print('url %s' % (arg.keys(), ))
+            # print('url')
+            # print('  url = %s' % (arg['url']))
+            print(arg['url'])
+            # if 'originalURI' in arg:
+            #     print('  originalURI = %s' % (arg['originalURI']))
             
 def h_printer(*args, **kwargs):
     verbose = kwargs['verbose']
