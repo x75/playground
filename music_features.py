@@ -10,6 +10,7 @@ comprehensive feature-gram over a given chunk of audio.
 
 # stdlib
 import argparse, pickle, re, os, sys, copy
+from collections import OrderedDict
 
 # numpy/scipy
 import numpy as np
@@ -360,6 +361,14 @@ def main_segment(args):
 
     # load the audio
     audio = loadaudio(args)
+    audio_labels = None
+
+    # check if labels exist
+    labelfile = args.file[:-4] + '_labels.txt'
+    if os.path.exists(labelfile):
+        audio_labels_t = np.genfromtxt(labelfile, delimiter='\t')
+        audio_labels = (audio_labels_t[:,0] * args.samplerate) / hopSize
+        logger.debug('labels = %s', audio_labels)
     # frame = audio
 
     # init window func
@@ -373,41 +382,42 @@ def main_segment(args):
         'BarkBands': {
             'op': estd.BarkBands,
             'opargs': {
-                'numberBands': 28,
+                'numberBands': 12, # 28,
             },
             'opout': [0],
         },
         'ERBBands': {
             'op': estd.ERBBands,
             'opargs': {
-                'numberBands': 40,
+                'numberBands': 12, # 40,
             },
             'opout': [0],
         },
         'MFCC':      {
             'op': estd.MFCC,
             'opargs': {
-                'numberBands': 40, 'numberCoefficients': 10, 'highFrequencyBound': 10000, 'logType': 'dbamp', 'normalize': 'unit_sum',
+                'numberBands': 20, 'numberCoefficients': 10, 'highFrequencyBound': 10000, 'logType': 'dbamp', 'normalize': 'unit_sum', # 40 numbands
             },
             'opout': [1],
         },
         'GFCC':      {
             'op': estd.GFCC,
             'opargs': {
-                'numberBands': 40, 'numberCoefficients': 10, 'highFrequencyBound': 10000, 'logType': 'dbamp',
+                'numberBands': 20, 'numberCoefficients': 10, 'highFrequencyBound': 10000, 'logType': 'dbamp', # 40 numberBands
             },
             'opout': [1],
         },
         'LPC':      {
             'op': estd.LPC,
             'opargs': {
-                'order': 10, 'type': 'regular',
+                # 'order': 20, 'type': 'regular',
+                'order': 8, 'type': 'regular',
             },
             'opout': [1],
         },
         'MelBands':  {
             'op': estd.MelBands,
-            'opargs': {'numberBands': 40},
+            'opargs': {'numberBands': 10},
             'opout': [0],
         },
     }
@@ -440,7 +450,7 @@ def main_segment(args):
     specgram = []
     # mfcc_bandsgram = []
     # mfcc_coefsgram = []
-    logger.debug('computing spec and features for audio of size %s', audio.shape)
+    logger.debug('main_segment: computing spec and features for audio of size %s', audio.shape)
     for frame in estd.FrameGenerator(audio, frameSize = frameSize, hopSize = hopSize, startFromZero=True):
         # mfcc_bands, mfcc_coeffs = mfcc(spectrum(w(frame)))
         # pool.add('lowlevel.mfcc', mfcc_coeffs)
@@ -465,16 +475,17 @@ def main_segment(args):
             # mfcc_coefsgram.append(mfcc_coefs)
 
         numframes += 1
-
-    print "    crunched %d frames of shape %s" % (numframes, frame.shape)
+        if numframes % 10000 == 0:
+            logger.debug('main_segment: crunched %d frames of shape %s', numframes, frame.shape)
+    logger.debug('main_segment: crunched %d frames of shape %s', numframes, frame.shape)
     # sys.exit(0)
-    
+
     specgram = np.array(specgram).T
-    logger.debug("    %s-gram = %s", 'spec', specgram.shape)
+    logger.debug("main_segment: %s-gram = %s", 'spec', specgram.shape)
 
     for fk, fv in features.items():
         fv['gram'] = np.array(fv['gram']).T
-        logger.debug("    %s-gram = %s", fk, fv['gram'].shape)
+        logger.debug("main_segment computing sbic for %s-gram = %s", fk, fv['gram'].shape)
         # mfcc_bandsgram = np.array(mfcc_bandsgram).T
         # mfcc_coefsgram = np.array(mfcc_coefsgram).T
         # print "segmenting mfcc_bandsgram", mfcc_bandsgram.shape
@@ -488,22 +499,33 @@ def main_segment(args):
         # logger.debug("    pool['segment.sbic'] = %s", pool['segment.sbic'])
 
         
-        logger.debug("%s seg indices[frame] = %s" % (fk, fv['segidx'], ))
-        logger.debug("       indices[time]  = %s" % ((fv['segidx'] * hopSize) / args.samplerate, ))
-        logger.debug("       framesize = %d, hopsize = %d" % (frameSize, hopSize))
+        # logger.debug("%s seg indices[frame] = %s" % (fk, fv['segidx'], ))
+        # logger.debug("       indices[time]  = %s" % ((fv['segidx'] * hopSize) / args.samplerate, ))
+        logger.debug("%s seg |indices[frame]| = %s" % (fk, len(fv['segidx']), ))
+        # logger.debug("       indices[time]  = %s" % ((fv['segidx'] * hopSize) / args.samplerate, ))
+        # logger.debug("       framesize = %d, hopsize = %d" % (frameSize, hopSize))
 
+    # copy spectrum into features_ for plotting
+    features_ = features
+    # features_['Spectrum'] = {'gram': specgram[1:40,...]}
+
+    logger.debug('main_segment: starting plot of %d grams', len(features_))
     fig = plt.figure()
-    fig.suptitle("part segmentation for %s" % (args.file.split('/')[-1], ))
+    fig.suptitle("part segmentation for %s with fs=%d, hs=%d" % (args.file.split('/')[-1], frameSize, hopSize))
     fig.show()
-    gs = GridSpec(len(features), 1)
+    gs = GridSpec(len(features_), 1)
 
     axi = 0
-    for fk, fv in features.items():
+    for fk, fv in features_.items():
+        logger.debug('main_segment: plotting feature %s with shape %s', fk, fv['gram'].shape)
         ax = fig.add_subplot(gs[axi])
         ax.title.set_text(fk)
         ax.title.set_position((0.1, 0.9))
         ax.pcolormesh(fv['gram'])
-        ax.plot(fv['segidx'], fv['gram'].shape[0]/2 * np.ones_like(fv['segidx']), 'ro')
+        if 'segidx' in fv:
+            ax.plot(fv['segidx'], fv['gram'].shape[0]/2 * np.ones_like(fv['segidx']), 'ro')
+        if audio_labels is not None:
+            ax.plot(audio_labels, (fv['gram'].shape[0]/2 + 1) * np.ones_like(audio_labels), 'go', alpha=0.7)
         if axi < (len(features) - 1): # all but last axis
             ax.set_xticklabels([])
         else:
@@ -522,6 +544,7 @@ def main_segment(args):
     # ax3.pcolormesh(mfcc_coefsgram)
     # ax3.plot(fv['segidx'], mfcc_coefsgram.shape[0]/2 * np.ones_like(fv['segidx']), 'ro')
 
+    logger.debug('main_segment: done plotting of %d grams', len(features_))
     plt.draw()
     plt.pause(1e-9)
 
@@ -946,7 +969,7 @@ def main_files(args):
     
     files = args.file[0]
     for file in files:
-        logger.debug("running mode %s on file %s" % (args.mode, file))
+        logger.debug("main_files: running mode %s on file %s" % (args.mode, file))
         args_ = copy.copy(args)
         setattr(args_, 'file', file)
         # main_segment(args_)
