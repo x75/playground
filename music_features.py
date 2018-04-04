@@ -429,11 +429,17 @@ def main_segment(args):
         # mfcc = estd.MFCC()
     
     # segmentation operator
-    sbic = estd.SBic(cpw = args.complexity_penalty_weight, inc1 = 60, inc2 = 20, minLength = args.minlength, size1 = 300, size2 = 200)
-    # sbic = estd.SBic(cpw = 1.5, inc1 = 60, inc2 = 20, minLength = 10, size1 = 300, size2 = 200)
-    # sbic = estd.SBic(cpw = 1.5, inc1 = 60, inc2 = 20, minLength = 80, size1 = 300, size2 = 200)
-    # sbic = estd.SBic(cpw = 0.05, inc1 = 60, inc2 = 20, minLength = 120, size1 = 300, size2 = 200)
-    # sbic = estd.SBic(cpw = 0.3, inc1 = 20, inc2 = 10, minLength = 10, size1 = 100, size2 = 70)
+    sbic = estd.SBic(
+        cpw = args.sbic_complexity_penalty_weight,
+        inc1=args.sbic_inc1, inc2=args.sbic_inc2,
+        minLength=args.sbic_minlength,
+        size1=args.sbic_size1, size2=args.sbic_size2
+    )
+    
+    # sbic = estd.SBic(cpw = 1.5, inc1 = 60, inc2 = 20, sbic_minlength = 10, size1 = 300, size2 = 200)
+    # sbic = estd.SBic(cpw = 1.5, inc1 = 60, inc2 = 20, sbic_minlength = 80, size1 = 300, size2 = 200)
+    # sbic = estd.SBic(cpw = 0.05, inc1 = 60, inc2 = 20, sbic_minlength = 120, size1 = 300, size2 = 200)
+    # sbic = estd.SBic(cpw = 0.3, inc1 = 20, inc2 = 10, sbic_minlength = 10, size1 = 100, size2 = 70)
 
     # print "w", repr(w)
     # print "spectrum", repr(spectrum)
@@ -983,8 +989,12 @@ if __name__ == "__main__":
     modes.sort()
     default_frame_size_low_level = 2048
     parser = argparse.ArgumentParser()
-    parser.add_argument("-cpw", "--complexity-penalty-weight", help="SBic param cpw [1.5]", type=float, default=1.5)
-    parser.add_argument("-ml", "--minlength", help="SBic param minlength [10]", type=int, default=10)
+    parser.add_argument("-scpw", "--sbic-complexity-penalty-weight", help="SBic param cpw [1.5]", type=float, default=1.5)
+    parser.add_argument("-sml", "--sbic-minlength", help="SBic param sbic_minlength [10]", type=int, default=10)
+    parser.add_argument("-sinc1", "--sbic-inc1", type=int, default=60, help="SBic param sbic_inc1 [60]")
+    parser.add_argument("-sinc2", "--sbic-inc2", type=int, default=20, help="SBic param sbic_inc2 [20]")
+    parser.add_argument("-ssize1", "--sbic-size1", type=int, default=300, help="SBic param sbic_size1 [300]")
+    parser.add_argument("-ssize2", "--sbic-size2", type=int, default=200, help="SBic param sbic_size2 [200]")
     parser.add_argument("-d", "--datadir", help="Data directory [.]", type = str, default = ".")
     # parser.add_argument("-f", "--file", help="Input file [data/ep1.wav]", type = str, default = "data/ep1.wav")
     parser.add_argument("-f", "--file", action = 'append', dest = 'file', help="Input file(s) []", nargs = '+', default = [])
