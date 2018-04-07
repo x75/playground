@@ -33,11 +33,12 @@ from dimstack import dimensional_stacking
 
 # try using keras
 try:
-    from keras.layers import Input, Dense, Lambda
+    from keras.layers import Input, Dense, Lambda, Merge
     from keras.models import Model
     from keras.optimizers import RMSprop
-    from keras import initializations
-    from keras.engine.topology import Merge
+    # from keras import initializations
+    from keras import initializers
+    # from keras.engine.topology import Merge
     HAVE_KERAS = True
 except ImportError, e:
     print "Couldn't import Keras because %s" % e
@@ -50,7 +51,8 @@ sensorimotor_loops = [
     ]
 
 def my_init(shape, name=None):
-    return initializations.normal(shape, scale=0.01, name=name)
+    # return initializations.normal(shape, scale=0.01, name=name)
+    return initializers.normal(shape, stddev=0.01)
 
 class Environment(object):
     def __init__(self, agents = []):
@@ -308,8 +310,12 @@ class TD0PredictionAgent(Agent):
         # inputs_squared = Lambda(lambda x: (x ** 2) * 0.1)(inputs)
         # inputs_combined = Merge(mode="concat", concat_axis=1)([inputs_gain, inputs_squared])
         # a layer instance is callable on a tensor, and returns a tensor
-        x = Dense(layer_1_num_units, activation='tanh', init=init_str)(inputs_gain)
-        x = Dense(layer_2_num_units, activation='tanh', init=init_str)(x)
+
+        # x = Dense(layer_1_num_units, activation='tanh', init=init_str)(inputs_gain)
+        # x = Dense(layer_2_num_units, activation='tanh', init=init_str)(x)
+
+        x = Dense(layer_1_num_units, activation='tanh', kernel_initializer='random_normal')(inputs_gain)
+        x = Dense(layer_2_num_units, activation='tanh', kernel_initializer='random_normal')(x)
         predictions = Dense(1, activation='linear')(x)
         outputs_gain = Lambda(lambda x: x * output_gain)(predictions)
 
@@ -329,8 +335,13 @@ class TD0PredictionAgent(Agent):
         # inputs_squared = Lambda(lambda x: (x ** 2) * 0.1)(inputs_q_fa)
         # inputs_combined = Merge(mode="concat", concat_axis=1)([inputs_gain, inputs_squared])
         # a layer instance is callable on a tensor, and returns a tensor
-        x = Dense(layer_1_num_units, activation='tanh', init=init_str)(inputs_gain)
-        x = Dense(layer_2_num_units, activation='tanh', init=init_str)(x)
+
+        # x = Dense(layer_1_num_units, activation='tanh', init=init_str)(inputs_gain)
+        # x = Dense(layer_2_num_units, activation='tanh', init=init_str)(x)
+
+        x = Dense(layer_1_num_units, activation='tanh', kernel_initializer='random_normal')(inputs_gain)
+        x = Dense(layer_2_num_units, activation='tanh', kernel_initializer='random_normal')(x)
+
         predictions = Dense(1, activation='linear')(x)
         outputs_gain = Lambda(lambda x: x * output_gain)(predictions)
 
