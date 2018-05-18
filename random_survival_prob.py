@@ -32,6 +32,7 @@ for dim in dims:
 ps = np.array(ps)
 
 # p_success = ps
+# exp(p) is used a generalization of p(x^d) = goal-size / length-of-dimension^d
 p_fail_dim = []
 B_reqs = []
 for i, dim in enumerate(dims):
