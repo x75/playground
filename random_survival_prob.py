@@ -53,20 +53,26 @@ B_reqs = np.array(B_reqs)
 # fig = plt.figure()
 
 # plt.subplot(211)
-ax = plt.subplot2grid((3, len(dims)), (0, 0), colspan=len(dims), rowspan = 2)
+
+row_logp = 1
+row_hists = 0
+
+ax = plt.subplot2grid((3, len(dims)), (row_logp, 0), colspan=len(dims), rowspan = 2)
 ax.plot(dims, ps, "ko")
+
 # ax.plot(dims, (B_reqs - np.min(B_reqs))/np.max(B_reqs), "ro")
+ax.set_xlabel('dimension d')
 ax.set_ylabel('log(p)')
 # plt.subplot(212)
 for i, dim in enumerate(dims):
-    ax = plt.subplot2grid((3, len(dims)), (2, i), colspan=1)
+    ax = plt.subplot2grid((3, len(dims)), (row_hists, i), colspan=1)
     h, bins = np.histogram(p_fail_dim[i], bins = 'auto', density = True)
     # print "h", h, "bins", bins
     h_ = h / np.sum(h)
     bins_ = bins[:-1] + np.diff(bins)
     # plt.bar(left = bins_, height = h_, bottom = 0, width = 1.0)
-    ax.bar(left = bins_, height = h_, bottom = 0, width = 0.1 * max(5.0, (bins_[-1] - bins_[0])))
-    ax.plot([B_reqs[i]] * 2, [0, 1.0], "r-")
+    ax.bar(left = bins_, height = h_, bottom = 0, width = 0.125 * max(5.0, (bins_[-1] - bins_[0])), color='black')
+    # ax.plot([B_reqs[i]] * 2, [0, 1.0], "r-")
     # print ax.get_xlim()
     xlim = np.array(ax.get_xlim())
     if xlim[1] - xlim[0] < 10.0:
@@ -81,9 +87,14 @@ for i, dim in enumerate(dims):
     # plt.gca().set_yscale('log')
 # plt.ylabel('log(p)')
 
+hspace = 0.5
+wspace = 0.3
+        
 fig = ax.figure
 fig.suptitle("Probability of success for random strategy")
-fig.set_size_inches((12, 5))
+fig.subplots_adjust(bottom=0.18, wspace=wspace, hspace=hspace)
+fig.set_size_inches((6, 2.8))
 fig.savefig('random_survival_prob.pdf', dpi = 300, bbox_inches = 'tight')
+# fig.savefig('random_survival_prob.pdf', dpi = 300, bbox_inches = None)
     
 plt.show()
