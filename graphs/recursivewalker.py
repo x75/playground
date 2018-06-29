@@ -37,6 +37,11 @@ import argparse
 import json
 
 def get_filep(filename, mode='r'):
+    """get filepointer
+
+    Try to open file 'filename' in mode 'mode' and return filepointer
+    'f', None on fail.
+    """
     f = None
     try:
         f = open(filename, mode)
@@ -47,15 +52,23 @@ def get_filep(filename, mode='r'):
     return f
 
 def load_data_json(filename):
+    """load data from json file
+    """
     f = get_filep(filename, 'r')
     d = json.load(f)
     d_bytes = f.tell()
     return d, d_bytes
 
 def load_data_xml(filename):
+    """load data from xml
+    
+    implement me
+    """
     return None, None
 
 def load_data(filename, filetype='json'):
+    """load data from file based on filetype
+    """
     load_data_funcs = {
         'json': load_data_json,
         'xml': load_data_xml,
@@ -64,6 +77,8 @@ def load_data(filename, filetype='json'):
     return load_data_funcs[filetype](filename)
 
 def h_geturls(*args, **kwargs):
+    """get url entries from string args[0] by substring match
+    """
     # print('h_geturls args = %s' % (args))
     if len(args) < 1 and len(kwargs) < 1: return None
 
@@ -77,6 +92,8 @@ def h_geturls(*args, **kwargs):
             print('url: %s' % (arg, ))
 
 def h_geturlsfromtabs(*args, **kwargs):
+    """get url entries from dict args[0] by key match
+    """
     # print('h_geturls args = %s' % (args))
     if len(args) < 1 and len(kwargs) < 1: return None
 
@@ -96,6 +113,8 @@ def h_geturlsfromtabs(*args, **kwargs):
             #     print('  originalURI = %s' % (arg['originalURI']))
             
 def h_printer(*args, **kwargs):
+    """print a single step of the walk
+    """
     verbose = kwargs['verbose']
     if not verbose: return
     tree = args[0]
@@ -113,18 +132,26 @@ def h_printer(*args, **kwargs):
     # return None
 
 def h_tree(*args, **kwargs):
+    """print the tree walk
+    """
     pass
     
 def list2dict(l):
+    """convert a list to a dictionary
+    """
     assert iscomposite(l), 'Object l is not composite with type = %s' % (type(l))
     if type(l) in [dict, OrderedDict]: return l
     return dict(zip(range(len(l)), l))
     
 def iscomposite(x):
+    """check if object 'x' is composite
+    """
     # return type(x) in [dict, list, OrderedDict, str, unicode]
     return type(x) in [dict, list, OrderedDict]
 
 def h_recurse(*args, **kwargs):
+    """get top level tree and start recursive walk
+    """
     tree = args[0]
     level = kwargs['level']
     handlers = kwargs['handlers']
@@ -137,7 +164,8 @@ def h_recurse(*args, **kwargs):
     for i, k in enumerate(list2dict(tree)):
         # v = tree[k]
         recursive_walker(tree[k], level+1, handlers, verbose)
-               
+
+# callback handlers for walking step
 handlers = {
     'tree': h_tree,
     'recurse': h_recurse,
@@ -165,20 +193,23 @@ def recursive_walker(tree, level=0, handlers=[], verbose=True):
 def main(args):
     assert args.filename is not None, 'No filename given, exiting'
 
-    # FIXME: file type?
+    # check file type
     if args.filename.endswith('.json'):
         filetype = 'json'
     elif args.filename.endswith('.xml'):
         filetype = 'xml'
-        
+
+    # get data and size
     d, d_bytes = load_data(args.filename, filetype)
 
+    # check data sanity
     assert d is not None, 'No data loaded, d = %s, d_bytes = %s' % (d, d_bytes)
 
+    # print status info
     print('Loaded data of type = %s, bytes = %s, size = %s' % (type(d), d_bytes, len(d)))
-
     print('Walking data')
 
+    # start the walk, using handlers
     recursive_walker(d, 0, [handlers[k] for k in handlers if k in args.handlers], True)
     
 if __name__ == '__main__':
