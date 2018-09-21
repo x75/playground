@@ -86,7 +86,8 @@ def h_geturls(*args, **kwargs):
     # with args[0] as arg:
     arg = args[0]
     if True:
-        if type(arg) not in [str, unicode]: return None
+        # if type(arg) not in [str, unicode]: return None
+        if type(arg) not in [str]: return None
         # if arg.count('url') > 0:
         if 'url' in arg:
             print('url: %s' % (arg, ))
@@ -179,6 +180,16 @@ def recursive_walker(tree, level=0, handlers=[], verbose=True):
 
     Recursively walk any tree-like structure such as dictionaries and
     lists. Common use cases are json or xml data.
+
+    Arguments:
+    - tree(dict): the tree to walk as dict
+    - level(int): recursion depth information
+    - handlers(list): list of callback functions to be evaluated for
+      each step
+    - verbose(bool): debug verbosity
+
+    Returns:
+    - None
     """
     # assert iscomposite(tree), 'recursive_walker: arg tree has wrong type = %s' % (type(tree))
     spacer = ' ' * 4 * level
@@ -186,9 +197,11 @@ def recursive_walker(tree, level=0, handlers=[], verbose=True):
 
     # a tree leaf
     # if not iscomposite(tree):
-    
+
+    # apply callbacks
     for h in handlers: h(tree, level=level, handlers=handlers, verbose=verbose)
-    # return None
+        
+    return None
 
 def main(args):
     assert args.filename is not None, 'No filename given, exiting'
