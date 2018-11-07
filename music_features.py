@@ -80,7 +80,7 @@ def loadaudio(args):
 
     Load data from an audio file of any format supported by Monoloader
     """
-    loader = estd.MonoLoader(filename= args.file, sampleRate = args.samplerate)
+    loader = estd.MonoLoader(filename=args.file, sampleRate=args.samplerate)
     return loader()
 
 def main_simple(args):
@@ -92,7 +92,7 @@ def main_simple(args):
     plt.ion()
     
     audio = loadaudio(args)
-
+    
     w = estd.Windowing(type = 'hamming')
     spectrum = estd.Spectrum()  # FFT() would return the complex FFT, here we just want the magnitude spectrum
     mfcc = estd.MFCC()
@@ -117,8 +117,8 @@ def main_simple(args):
     fig, gs = makefig(rows = 3, cols = 1, add_subplots = False)
     fig.show()
 
-    print "specgram.shape", specgram.shape
-    print "melbands.shape", melbands.shape
+    print("specgram.shape", specgram.shape)
+    print("melbands.shape", melbands.shape)
     
     ax1 = fig.add_subplot(gs[0,0])
     ax1.imshow(np.log(specgram[1:,:]), aspect = 'auto', origin='lower', interpolation='none')
@@ -139,12 +139,12 @@ def main_simple(args):
     # melbands_ = wt.fit_transform(melbands.T).T # scale(melbands.T).T
     # melbands_ = np.log(melbands + 1)  * 10
 
-    print "melbands", melbands.shape, "melbands_", melbands_.shape
-    print "means", np.mean(melbands_, axis = 1)
+    print("melbands", melbands.shape, "melbands_", melbands_.shape)
+    print("means", np.mean(melbands_, axis = 1))
     
     sfa_in = melbands_[1:,:]
     sfa_cov = np.cov(sfa_in)
-    print "sfa_cov", sfa_cov.shape
+    print("sfa_cov", sfa_cov.shape)
     # rbfcs = np.random.uniform(-5, 5, (numcomps, sfa_in.shape[0]))
     # sfa = SFA(numcomps = numcomps, numexps = 2) # , rbfc = rbfcs)
     sfa = KernelPCA(kernel="rbf", degree=5, fit_inverse_transform=True, gamma=10, n_components = numcomps)
@@ -163,7 +163,7 @@ def main_simple(args):
         # sfa_in += np.random.uniform(-1e-3, 1e-3, sfa_in.shape)
         melbands_sfa = sfa.fit_transform(sfa_in.T)
         # melbands_sfa = sfa.fit_transform(specgram[1:,:].T)
-        print "melbands_sfa.shape", melbands_sfa.shape
+        print("melbands_sfa.shape", melbands_sfa.shape)
 
         fig2, gs2 = makefig(rows = 1, cols = 2, add_subplots = False)
         fig2.show()
@@ -177,15 +177,15 @@ def main_simple(args):
         ax = fig2.add_subplot(gs2[0,1])
         maxs = []
         for fr_ in melbands_sfa:
-            print "fr_", fr_.shape
+            print("fr_", fr_.shape)
             maxs.append(np.argmax(np.abs(fr_)))
         ax.plot(np.array(maxs), "bo")
 
         plt.draw()
         plt.pause(1e-9)
         
-    except Exception, e:
-        print "SFA failed", e
+    except Exception as e:
+        print("SFA failed", e)
 
     
     plt.ioff()
@@ -202,7 +202,7 @@ def main_mfcc(args):
 
     audio = loadaudio(args)
     
-    print "audio", type(audio), audio.shape
+    print("audio", type(audio), audio.shape)
 
     # pylab contains the plot() function, as well as figure, etc... (same names as Matlab)
     plt.rcParams['figure.figsize'] = (15, 6) # set plot sizes to something larger than default
@@ -218,12 +218,12 @@ def main_mfcc(args):
     # print "mfcc", repr(mfcc)
 
     frame = audio[int(0.2*args.samplerate) : int(0.2*args.samplerate) + 1024]
-    print "frame.shape", frame.shape
+    print("frame.shape", frame.shape)
     spec = spectrum(w(frame))
     mfcc_bands, mfcc_coeffs = mfcc(spec)
 
-    print "type(spec)", type(spec)
-    print "spec.shape", spec.shape
+    print("type(spec)", type(spec))
+    print("spec.shape", spec.shape)
 
     fig.axes[0].plot(audio[int(0.2*args.samplerate):int(0.4*args.samplerate)])
     fig.axes[0].set_title("This is how the 2nd second of this audio looks like:")
@@ -321,10 +321,10 @@ def main_danceability(args):
     # compute the centroid for all frames in our audio and add it to the pool
     for frame in estd.FrameGenerator(audio, frameSize = 10 * args.samplerate, hopSize = 5 * args.samplerate):
         dreal, ddfa = danceability(w(frame))
-        print "d", dreal # , "frame", frame
+        print("d", dreal) # , "frame", frame
         pool.add('rhythm.danceability', dreal)
 
-    print type(pool['rhythm.danceability'])
+    print(type(pool['rhythm.danceability']))
         
     # aggregate the results
     # aggrpool = estd.PoolAggregator(defaultStats = [ 'mean', 'var' ])(pool)
@@ -361,6 +361,7 @@ def main_segment(args):
 
     # load the audio
     audio = loadaudio(args)
+    logger.debug('audio loaded, type = %s' % (audio.dtype))
     audio_labels = None
 
     # check if labels exist
@@ -375,7 +376,6 @@ def main_segment(args):
     w = estd.Windowing(type = 'hamming')
     # init spectrum
     spectrum = estd.Spectrum()  # FFT() would return the complex FFT, here we just want the magnitude spectrum
-
 
     # feature operators
     features = {
@@ -421,7 +421,7 @@ def main_segment(args):
             'opout': [0],
         },
     }
-    for fk, fv in features.items():
+    for fk, fv in list(features.items()):
         features[fk]['inst'] = fv['op'](**fv['opargs'])
         features[fk]['gram'] = []
         
@@ -461,12 +461,12 @@ def main_segment(args):
         # mfcc_bands, mfcc_coeffs = mfcc(spectrum(w(frame)))
         # pool.add('lowlevel.mfcc', mfcc_coeffs)
         # pool.add('lowlevel.mfcc_bands', mfcc_bands)
-        # print "frame", frame.shape
+        print("frame", frame.shape)
         # frame = np.atleast_2d(frame)
         spec = spectrum(w(frame))
         specgram.append(spec)
 
-        for fk, fv in features.items():
+        for fk, fv in list(features.items()):
             # logger.debug('computing feature %s', fk)
             fspec_ = fv['inst'](spec)
             # logger.debug('   type(fspec_) = %s', type(fspec_))
@@ -489,7 +489,7 @@ def main_segment(args):
     specgram = np.array(specgram).T
     logger.debug("main_segment: %s-gram = %s", 'spec', specgram.shape)
 
-    for fk, fv in features.items():
+    for fk, fv in list(features.items()):
         fv['gram'] = np.array(fv['gram']).T
         logger.debug("main_segment computing sbic for %s-gram = %s", fk, fv['gram'].shape)
         # mfcc_bandsgram = np.array(mfcc_bandsgram).T
@@ -522,7 +522,7 @@ def main_segment(args):
     gs = GridSpec(len(features_), 1)
 
     axi = 0
-    for fk, fv in features_.items():
+    for fk, fv in list(features_.items()):
         logger.debug('main_segment: plotting feature %s with shape %s', fk, fv['gram'].shape)
         ax = fig.add_subplot(gs[axi])
         ax.title.set_text(fk)
@@ -586,7 +586,7 @@ def main_extractor(args):
     pdict = {}
     # print "type(p)", type(p)
     for desc in p.descriptorNames():
-        print desc, type(p[desc])
+        print(desc, type(p[desc]))
         #     print "{0: >20}: {1}".format(desc, p[desc])
         pdict[desc] = p[desc]
 
@@ -597,7 +597,7 @@ def util_filename_clean(filename):
     filename_1 = re.sub(r'[/\. ]', r'_', filename)
     filename_2 = filename.replace("/", "_")
     ret = filename_1
-    print "util_filename_clean ret = %s" % (ret, )
+    print("util_filename_clean ret = %s" % (ret, ))
     return ret
     
 def main_extractor_pickle_plot(args):
@@ -624,7 +624,7 @@ def main_extractor_pickle_plot(args):
     for group in feature_groups:
         feature_keys_groups[group] = [k for k in feature_keys if k.split(".")[0] == group]
 
-    print len(feature_keys_groups)
+    print(len(feature_keys_groups))
 
     for group in feature_groups:
         fk_ = feature_keys_groups[group]
@@ -695,29 +695,29 @@ def main_extractor_pickle_plot_timealigned(args):
     numframes = pdict['lowLevel.spectral_centroid'].shape[0]
 
     st = ()
-    for ftkey in pdict.keys():
+    for ftkey in list(pdict.keys()):
         if type(pdict[ftkey]) is np.ndarray:
             # print ftkey, pdict[ftkey].shape
             if pdict[ftkey].shape[0] == numframes:
                 tmp = pdict[ftkey]
                 if len(tmp.shape) == 1:
                     tmp = tmp.reshape((numframes, 1))
-                print ftkey, "sum(tmp)", np.sum(np.abs(tmp)), tmp.shape
+                print(ftkey, "sum(tmp)", np.sum(np.abs(tmp)), tmp.shape)
                 if np.sum(np.abs(tmp)) < 1e9:
                     st += (tmp, )
     # print "st", st
     full_time_aligned_raw = np.hstack(st)
-    print "full_time_aligned_raw", full_time_aligned_raw.shape
+    print("full_time_aligned_raw", full_time_aligned_raw.shape)
     
     # clean up
     sum_raw = np.sum(np.abs(full_time_aligned_raw), axis = 0)
-    print "sum_raw", np.argmax(sum_raw), np.max(sum_raw)
+    print("sum_raw", np.argmax(sum_raw), np.max(sum_raw))
     var_raw = np.var(full_time_aligned_raw, axis = 0)
     # print "var_raw", var_raw != 0
     
     # scale / whiten
     full_time_aligned = scale(full_time_aligned_raw[...,var_raw != 0])
-    print "full_time_aligned", full_time_aligned.shape
+    print("full_time_aligned", full_time_aligned.shape)
     
     # print "mean(full_time_aligned) = %s" % (np.mean(full_time_aligned, axis = 0), )
     # print "var(full_time_aligned) = %s" % (np.var(full_time_aligned, axis = 0), )
@@ -749,7 +749,7 @@ def main_extractor_pickle_plot_timealigned(args):
     def decomp(X, algo = 'pca', numcomps = 3, datasig = 'data/ep1_wav'):
         
         filename_decomp = datasig + "_" + algo + ".npy"
-        print "filename_decomp", filename_decomp
+        print("filename_decomp", filename_decomp)
 
         TF = {
             'pca': PCA(n_components = numcomps, whiten = True),
@@ -765,7 +765,7 @@ def main_extractor_pickle_plot_timealigned(args):
             # compute
             # pca
             # pca   = PCA(n_components = numcomps)
-            print "Fitting with algo = %s" % (algo, )
+            print("Fitting with algo = %s" % (algo, ))
             X_ = TF[algo].fit_transform(X)
             # X_pca.transform(full_time_aligned)
             # print X_pca.transform(full_time_aligned).shape
@@ -876,7 +876,7 @@ def main_print_file_info(args):
     import os
     import taglib
 
-    print "print_file_info: walking %s directory" % (args.datadir, )
+    print("print_file_info: walking %s directory" % (args.datadir, ))
     for datadir_item in os.walk(args.datadir):
         # print "    type(f) = %s\n    f = %s\n" % (type(f), f[0], ),
         for datafile in datadir_item[2]:
@@ -889,7 +889,7 @@ def main_print_file_info(args):
             # print "        datafile = %s" % (datafile, )
             # print "            tags = %s" % tlf.tags
             #       path  type  numframes
-            print "    ('%s', '%s', %d, %d)," % (tlf.path, tlf_type, tlf.length * tlf.sampleRate, tlf.sampleRate)
+            print("    ('%s', '%s', %d, %d)," % (tlf.path, tlf_type, tlf.length * tlf.sampleRate, tlf.sampleRate))
             
 def main_mix(args):
     """Render the final mix into a single bitstream file from ordered
@@ -917,27 +917,27 @@ def main_mix(args):
 
     silence_thresh = -40
     
-    print "trk_seq"
+    print("trk_seq")
     for i, tup in enumerate(trk_seq):
-        print "trk", i, tup[0], tup[1]
+        print("trk", i, tup[0], tup[1])
         
         if i < 1:
-            print "just appending"
+            print("just appending")
             mix = AudioSegment.from_mp3(tup[1]) # .strip_silence()
-            print " mix dur", mix.duration_seconds
+            print(" mix dur", mix.duration_seconds)
             mix = mix.strip_silence(silence_len = 1500, silence_thresh = silence_thresh, padding = 60)
-            print " mix dur", mix.duration_seconds
+            print(" mix dur", mix.duration_seconds)
         
         else:
             xfadetime = np.random.randint(1500, 3000)
-            print "appending with xfade = %s ms" % (xfadetime, )
+            print("appending with xfade = %s ms" % (xfadetime, ))
             trk_ = AudioSegment.from_mp3(tup[1])
-            print "trk_ dur", trk_.duration_seconds
+            print("trk_ dur", trk_.duration_seconds)
             trk_ = trk_.strip_silence(silence_len = 1500, silence_thresh = silence_thresh, padding = 60)
-            print "trk_ dur", trk_.duration_seconds
+            print("trk_ dur", trk_.duration_seconds)
             mix = mix.append(trk_, crossfade = xfadetime)
             
-        print " mix dur", mix.duration_seconds
+        print(" mix dur", mix.duration_seconds)
 
     mix_fin = mix.fade_in(1000).fade_out(1000)
     
