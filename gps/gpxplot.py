@@ -58,6 +58,10 @@ from math import sqrt,sin,cos,asin,pi,ceil
 from os.path import basename
 from re import sub
 
+import pandas as pd
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
 import logging
 #logging.basicConfig(level=logging.DEBUG,format='%(levelname)s: %(message)s')
 debug=logging.debug
@@ -398,7 +402,7 @@ def main():
 		print 'see usage: ' + basename(sys.argv[0]) + ' --help'
 
 	try: opts,args=getopt.getopt(sys.argv[1:],'hgEx:y:o:t:n:',
-			['help','gprint','google','table'])
+			['help','gprint','google','table','mplplot'])
 	except Exception, e:
 		print e
 		print_see_usage()
@@ -417,6 +421,8 @@ def main():
 			action='googlechart'
 		if o == '--table':
 			action='printtable'
+		if o == '--mplplot':
+			action='mplplot'
 		if o == '-x':
 			if var_names.has_key(a):
 				xvar=var_names[a]
@@ -459,6 +465,25 @@ def main():
 		print_gpx_trk(trk,metric=metric)
 	elif action == 'googlechart':
 		print google_chart_url(trk,x=xvar,y=yvar,metric=metric)
+	elif action == 'mplplot':
+		print mplplot(trk,x=xvar,y=yvar,metric=metric)
 
+def mplplot(trk,x,y,metric):
+        # df = pd.read_csv('~/schwanderberg-gigerhorn-1.csv', delimiter=' ')
+        df = pd.read_csv('~/schwanderberg-niederental-clean.csv', delimiter=' ')
+
+        # fig = plt.figure()
+        # ax = fig.add_subplot(111, projection='3d')
+        # ax.plot(df['lat'], df['lon'], df['elevation(m)'])
+        # plt.draw()
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.plot(df['lat'], df['lon'], df['elevation(m)'], 'k', linestyle='-', marker='.', alpha=0.5)
+        # ax.set_aspect(1)
+
+        plt.show()
+
+                
 if __name__ == '__main__':
 	main()
