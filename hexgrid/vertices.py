@@ -65,9 +65,9 @@ mesh = build(mesh_info)
 
 # mesh = trimesh.load_mesh('/home/src/python/trimesh/models/featuretype.STL')
 # mesh = trimesh.load_mesh('/home/src/python/trimesh/models/unit_sphere.STL')
-mesh = trimesh.load_mesh('/home/src/python/trimesh/models/unit_cube.STL')
+# mesh = trimesh.load_mesh('/home/src/python/trimesh/models/unit_cube.STL')
 # mesh = trimesh.load_mesh('/home/src/python/trimesh/models/origin_inside.STL')
-# mesh = trimesh.load_mesh('/home/src/python/trimesh/models/soup.stl')
+mesh = trimesh.load_mesh('/home/src/python/trimesh/models/soup.stl')
 vertices = mesh.faces
 edges = mesh.edges
 
@@ -76,7 +76,14 @@ import scipy.spatial
 import pylab
 from itertools import combinations
 
-data = np.random.uniform([-5, -5, -1], [5, 5, 1], (20,3))            # arbitrary 3D data set
+data = np.random.uniform([-5, -5, -1], [5, 5, 1], (30,3))            # arbitrary 3D data set
+# data = np.array(mesh.faces).astype(float)
+# print(np.max(data))
+print(data.dtype)
+data /= np.max(data) # - np.array((150, 150, 0))
+data -= np.mean(data)
+data *= 10
+
 tri = scipy.spatial.Delaunay( data[:,:2] ) # take the first two dimensions
 
 print('tri.simplices = {0}'.format(tri.simplices.copy()))
@@ -115,6 +122,7 @@ def Cube():
 
     glBegin(GL_LINES)
     glColor3f(1, 1, 1)
+    # glScalef(10.0, 10.0, 10.0)
     # glBegin(GL_TRIANGLES)
     for edge in edges:
         # for vertex in edge:
@@ -124,14 +132,15 @@ def Cube():
                 glVertex3fv(vertices[line])
     glEnd()
 
-    # for i, pt in enumerate(data):
-    #     if np.random.uniform(0, 1) < 0.01:
-    #         # data[i][0] += np.random.uniform(0, 1e-1)
-    #         data[i][0] += np.sin(pt[1])
-    #     if np.random.uniform(0, 1) < 0.01:
-    #         # data[i][1] += np.random.uniform(0, 1e-1)
-    #         data[i][0] += np.cos(pt[0])
-        
+    for i, pt in enumerate(data):
+        if np.random.uniform(0, 1) < 0.1:
+            data[i][0] += np.random.uniform(0, 1e-1)
+            # data[i][0] = np.tanh(data[i][0])
+            # data[i] = np.tanh(data[i] + 0.1 * np.sin(pt)) * 1
+        if np.random.uniform(0, 1) < 0.1:
+            data[i][1] += np.random.uniform(0, 1e-1)
+            # data[i][1] = np.tanh(data[i][1])
+            # data[i] = np.tanh(data[i] + 0.1 * np.cos(pt)) * 1
     
 def main():
     pygame.init()
@@ -144,13 +153,16 @@ def main():
     glTranslatef(0.0,0.0, -5)
     # glTranslatef(-6.0, 0.0, -20)
 
-    while True:
+    running = True
+    while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                print('Got QUIT event')
+                running = False
                 pygame.quit()
                 quit()
 
-        # glRotatef(0.1, 3, 1, 1)
+        glRotatef(0.1, 3, 1, 1)
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
         Cube()
         pygame.display.flip()

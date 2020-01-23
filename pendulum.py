@@ -36,10 +36,10 @@ for i in range(1, numsteps):
     x[i,1] = one_over_fr * x[i-1,1] + x[i,2] * dt
     x[i,0] = x[i-1,0] + x[i,1] * dt
     if x[i,0] > (1*np.pi):
-        print "larger", x
+        print("larger", x)
         x[i,0] = x[i,0] - (2 * np.pi)
     elif x[i,0] < (-1*np.pi):
-        print "smaller", x
+        print("smaller", x)
         x[i,0] = x[i,0] + (2 * np.pi)
 
 gs = gridspec.GridSpec(2, 3)
@@ -52,18 +52,18 @@ ax1.plot(x, "k-")
 ax2 = fig.add_subplot(gs[0,2])
 # si = x[:,0] ==
 sls = 2000 # 1980+130
-print "sls", sls
+print("sls", sls)
 # sls = x[sls:,0] == np.pi * 0.4
-print "x[sls:,0]", x[sls:,0].shape
-print "x[sls:,0] < (np.pi * 0.4)", (x[sls:,0] < (np.pi * 0.4))
-print "x[sls:,0] > (np.pi * 0.39)", (x[sls:,0] > (np.pi * 0.39))
+print("x[sls:,0]", x[sls:,0].shape)
+print("x[sls:,0] < (np.pi * 0.4)", (x[sls:,0] < (np.pi * 0.4)))
+print("x[sls:,0] > (np.pi * 0.39)", (x[sls:,0] > (np.pi * 0.39)))
 sls += np.argwhere(np.logical_and(x[sls:,0] > (np.pi * 0.40), x[sls:,0] < (np.pi * 0.41)))[0,0]
 sloffs = 10
 sle  = sloffs + np.argwhere(np.logical_and(x[sls+sloffs:,0] > (np.pi * 0.40), x[sls+sloffs:,0] < (np.pi * 0.41)))[0,0]
-print "sle", sle
-print "x[sls+sloffs+sle:,0]", x[sls+sloffs+sle:,0]
+print("sle", sle)
+print("x[sls+sloffs+sle:,0]", x[sls+sloffs+sle:,0])
 # sle  = np.argwhere(np.logical_and(x[sls:,0] > (np.pi * 0.6), x[sls:,0] < (np.pi * 0.61)))[0,0]
-print "sls", sls
+print("sls", sls)
 sll = sle # int(115*6.8)
 sl = slice(sls, sls + sll)
 # ax2.plot([0, np.cos(x[sl,0]) * l], [0, np.sin(x[sl,0]) * l], "k-", alpha=0.1)
@@ -77,7 +77,7 @@ ax3 = fig.add_subplot(gs[1,:])
 # x_ = np.vstack((x[1:-1,0], x[2:,0])).T
 rng = 1400 # detect freq of oscillation
 x_ = np.vstack([x[i:-rng+i,0] for i in range(rng)]).T
-print "x_", x_.shape
+print("x_", x_.shape)
 # ax3.plot(x_[:,0], x_[:,1], "ko", alpha=0.25)
 transoffs = 1000
 x_comp = []
@@ -98,7 +98,7 @@ x_comp = np.array(x_comp).flatten()
 x_offs = np.array(x_offs).flatten()
 y_comp = np.array(y_comp).flatten()
 y_offs = np.array(y_offs).flatten()
-mp = ax3.scatter(x_comp + x_offs, y_comp + y_offs, c = x_comp - y_comp, cmap=plt.get_cmap("spectral"), alpha=0.25, s=2, linewidths=0)
+mp = ax3.scatter(x_comp + x_offs, y_comp + y_offs, c = x_comp - y_comp, cmap=plt.get_cmap("Spectral"), alpha=0.25, s=2, linewidths=0)
     
 # mp = ax3.scatter(x_[:,0], x_[:,1], c = x[:-1,1], alpha=0.25)
 fig.colorbar(mappable = mp, ax = ax3, orientation="horizontal", fraction=0.05)
