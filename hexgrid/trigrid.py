@@ -11,6 +11,7 @@ see trimesh, networkx
 from __future__ import division
 from __future__ import absolute_import
 
+import pickle, sys, time, threading
 import pygame
 from pygame.locals import *
 
@@ -19,23 +20,34 @@ from OpenGL.GLU import *
 
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+import joblib
 
 import matplotlib.pyplot as plt
 import meshpy.triangle as triangle
+# use meshpy
+from meshpy.triangle import MeshInfo, build
+
 import numpy as np
 import numpy.linalg as la
 from six.moves import range
 
+import jw_meshtools as mt
 
-c = 1
-hc1 = np.sin(np.deg2rad(60)) * c
-hc2 = np.sqrt(3)/2 * c
-r_i = hc1/3
-r_o = 2 * r_i
-c_2 = ((c/2) * r_o) / hc1
-# r_o = np.sin(np.deg2rad(30)) * 1
-
-print(hc1, hc2, r_i, r_o)
+def get_params(obj='line', c=1):
+    hc1 = np.sin(np.deg2rad(60)) * c
+    r_i = hc1/3
+    r_o = 2 * r_i
+    params = {
+        'obj': obj,
+        'c': 1,
+        'hc1': hc1,
+        'hc2': np.sqrt(3)/2 * c,
+        'r_i': r_i,
+        'r_o': r_o,
+        'c_2': ((c/2) * r_o) / hc1,
+    }
+    # 'r_o': np.sin(np.deg2rad(30)) * 1,
+    return params
 
 # def get_trigrid(num_x, num_y, c):
 #     hc = np.sqrt(3)/2 * c
@@ -105,200 +117,255 @@ print(hc1, hc2, r_i, r_o)
 
 # # rotate / translate
 
+# def round_trip_connect(start, end):
+#     return [(i, i+1) for i in range(start, end)] + [(end, start)]
 
-# use meshpy
-from meshpy.triangle import MeshInfo, build
+# def main_triangle():
+#     points = [(1, 0), (1, 1), (-1, 1), (-1, -1), (1, -1), (1, 0)]
+#     facets = round_trip_connect(0, len(points)-1)
 
-mesh_info = MeshInfo()
+#     circ_start = len(points)
+#     points.extend(
+#             (3 * np.cos(angle), 3 * np.sin(angle))
+#             for angle in np.linspace(0, 2*np.pi, 30, endpoint=False))
 
-points = [(0, 0)]
-for ang in [0, 60, 120, 180, 240, 300]:
-    points.append((np.cos(np.deg2rad(ang)) * 1, np.sin(np.deg2rad(ang)) * 1))
-facets = [
-    [0,1],
-    [0,2],
-    [0,3],
-    [0,4],
-    [0,5],
-    [0,6],
-    [1,2],
-    [2,3],
-    [3,4],
-    [4,5],
-    [5,6],
-    [6,1],
-    # [2,3],
-    # [3,4],
-    # [4,5],
-    # [5,6],
-    # [6,4],
-]
+#     facets.extend(round_trip_connect(circ_start, len(points)-1))
 
+#     def needs_refinement(vertices, area):
+#         bary = np.sum(np.array(vertices), axis=0)/3
+#         max_area = 0.001 + (la.norm(bary, np.inf)-1)*0.01
+#         return bool(area > max_area)
 
-# points = [(0,0)]
-# for trans in [0, 1, 2, 3, 4]:
-#     angs = [0, 60]
-#     # if trans > 0:
-#     #     angs += [120]
-        
-#     for ang in angs:
-#         points.append((np.cos(np.deg2rad(ang)) * 1 + trans, np.sin(np.deg2rad(ang)) * 1))
+#     info = triangle.MeshInfo()
+#     info.set_points(points)
+#     info.set_holes([(0, 0)])
+#     info.set_facets(facets)
 
-# print('points = {0}'.format(points))
+#     mesh = triangle.build(info, refinement_func=needs_refinement)
 
-# facets = [
-#     [0, 1], [0, 2], [1,2],
-#     [1, 2], [1, 4], [2,4],
-#     [1, 3], [1, 4], [3,4],
-#     [3, 4], [3, 6], [4,6],
-#     [3, 5], [3, 6], [5,6],
-#     [5, 6], [5, 8], [6,8],
-#     [5, 7], [5, 8], [7,8],
-# ]
+#     mesh_points = np.array(mesh.points)
+#     mesh_tris = np.array(mesh.elements)
 
-# mesh_info.set_points([
-#     # (0, 0), (1, 0), (0.5, hc1),
-#     (0, 0),
-#     (1, 0), (1, 1), (0, 1),
-#     # (2, 0), (1, 2), (0, 2),
-#     ])
-
-print(points)
-mesh_info.set_points(points)
-
-mesh_info.set_facets(facets)
-
-mesh = build(mesh_info)
-# mesh.write_vtk("test.vtk")
-
-mesh_points = np.array(mesh.points)
-mesh_tris = np.array(mesh.elements)
-print('mesh_tris = {0}'.format(list(mesh_tris)))
-
-print('neighbors = {0}'.format(list(mesh.neighbors)))
-
-plt.triplot(mesh_points[:, 0], mesh_points[:, 1], mesh_tris)
-# plt.aspect(1)
-# plt.show()
-
-# for
-tris = []
-tris_d = []
-for tri_ in mesh_tris:
-    print('tri_ = {0}'.format(tri_))
-    
-    tri_l = []
-    for tri_vert in tri_:
-        vert = mesh_points[tri_vert].tolist()
-        vert += [0]
-        print('tri_vert = {0}'.format(vert))
-        # print()
-        tri_l.append(vert)
-    tris.append(tri_l)
-    tris_d.append({
-        'color': np.random.uniform(0, 1, (3,)),
-        'state': np.random.uniform(0, 1)
-    })
-
-print(tris)
-        
-def round_trip_connect(start, end):
-    return [(i, i+1) for i in range(start, end)] + [(end, start)]
-
-def main_triangle():
-    points = [(1, 0), (1, 1), (-1, 1), (-1, -1), (1, -1), (1, 0)]
-    facets = round_trip_connect(0, len(points)-1)
-
-    circ_start = len(points)
-    points.extend(
-            (3 * np.cos(angle), 3 * np.sin(angle))
-            for angle in np.linspace(0, 2*np.pi, 30, endpoint=False))
-
-    facets.extend(round_trip_connect(circ_start, len(points)-1))
-
-    def needs_refinement(vertices, area):
-        bary = np.sum(np.array(vertices), axis=0)/3
-        max_area = 0.001 + (la.norm(bary, np.inf)-1)*0.01
-        return bool(area > max_area)
-
-    info = triangle.MeshInfo()
-    info.set_points(points)
-    info.set_holes([(0, 0)])
-    info.set_facets(facets)
-
-    mesh = triangle.build(info, refinement_func=needs_refinement)
-
-    mesh_points = np.array(mesh.points)
-    mesh_tris = np.array(mesh.elements)
-
-    # import matplotlib.pyplot as pt
-    pt.triplot(mesh_points[:, 0], mesh_points[:, 1], mesh_tris)
-    pt.show()
+#     # import matplotlib.pyplot as pt
+#     pt.triplot(mesh_points[:, 0], mesh_points[:, 1], mesh_tris)
+#     pt.show()
 
 # if __name__ == "__main__":
 #     main()
 
+def make_vertex_facets_hexagon(params):
+    # hexagon mesh
+    points = [(0, 0)]
+    for ang in [0, 60, 120, 180, 240, 300]:
+        points.append(
+            (np.cos(np.deg2rad(ang)) * params['c'],
+             np.sin(np.deg2rad(ang)) * params['c'])
+        )
+    facets = [
+        [0,1],
+        [0,2],
+        [0,3],
+        [0,4],
+        [0,5],
+        [0,6],
+        [1,2],
+        [2,3],
+        [3,4],
+        [4,5],
+        [5,6],
+        [6,1],
+        # [2,3],
+        # [3,4],
+        # [4,5],
+        # [5,6],
+        # [6,4],
+    ]
+    return (points, facets)
 
-
-def Cube(cnt):
-    mdir = 1.0
-
-    for tri_i, tri in enumerate(tris):
-        # x_ = 0.9 * tris_d[tri_i]['state']
-        # tris_d[tri_i]['state'] = x_
-        pass
+def make_vertex_facets_line(params):
+    points = [(0,0)]
+    for trans in [0, 1, 2, 3, 4]:
+        angs = [0, 60]
+        # if trans > 0:
+        #     angs += [120]
         
-    for tri_i, neighbors in enumerate(mesh.neighbors):
-        x_ = 0.99 * tris_d[tri_i]['state']
-        # tris_d[tri_i]['state'] = x_
+        for ang in angs:
+            points.append(
+                (np.cos(np.deg2rad(ang)) * params['c'] + trans,
+                 np.sin(np.deg2rad(ang)) * params['c']))
+
+    facets = [
+        [0, 1], [0, 2], [1,2],
+        [1, 2], [1, 4], [2,4],
+        [1, 3], [1, 4], [3,4],
+        [3, 4], [3, 6], [4,6],
+        [3, 5], [3, 6], [5,6],
+        [5, 6], [5, 8], [6,8],
+        [5, 7], [5, 8], [7,8],
+    ]
+
+    return (points, facets)
+
+def make_vertex_facets_rect(params):
+    length = 0.15
+    # Simple mesh rectangle
+    p,v=mt.RectangleSegments([-2, -1.5],[2, 1.5],edge_length=length)
+    # p1,v1=mt.CircleSegments([1.,0],1,a_min=-np.pi/2,a_max=np.pi/2,num_points=20)
+    # p2,v2=mt.CircleSegments([1,0],3,a_min=np.pi/2.,a_max=3.*np.pi/2,num_points=20)
+    # p,v=mt.AddSegments(p1,p2,closed=True)
+    # p1,v1=mt.RectangleSegments([-2,-2],[2.5,3],edge_length=length)
+    # p2,v2=mt.CircleSegments([1,1],1,edge_length=length/5)
+    # p,v=mt.AddCurves(p1,v1,p2,v2)
+    # mt.DoTriMesh(p,v,edge_length=length)
+    
+
+    # p1,v1=mt.LineSegments([-2,-3],[2,-3],num_points=12)
+    # p2,v2=mt.LineSegments([2,3],[-2,3],num_points=12)
+    # p,v=mt.AddSegments(p1,p2,closed=True)
+    # p3,v3=mt.CircleSegments([-0.5,0.5],0.5,edge_length=length)
+    # p,v=mt.AddCurves(p,v,p3,v3)
+    # p4,v4=mt.CircleSegments([1,-1],0.5,edge_length=length)
+    # p,v=mt.AddCurves(p,v,p4,v4)
+    # mt.DoTriMesh(p,v,edge_length=length,holes=[(-0.4,0.4),(0.95,-0.8)])
+    return (p, v)
+
+
+def make_mesh_meshpy_triangle(params):
+    c = params['c']
+    mesh_info = MeshInfo()
+
+    if params['obj'] == 'line':
+        points, facets = make_vertex_facets_line(params)
+    elif params['obj'] == 'hexagon':
+        points, facets = make_vertex_facets_hexagon(params)
+    elif params['obj'] == 'rect':
+        points, facets = make_vertex_facets_rect(params)
+    
+    print('points = {0}\nfacets = {1}'.format(points, facets))
+
+    mesh_info.set_points(points)
+    
+    mesh_info.set_facets(facets)
+
+    mesh = build(mesh_info)
+
+    # writing objects
+    # mesh.write_vtk("trigrid.vtk")
+    # f = open('trigrid.pkl', 'wb')
+    # pickle.dump(mesh, f)
+    # f.close()
+    # joblib.dump(mesh, 'trigrid.pkl')
+    # sys.exit()
+    return mesh
+
+def mesh_extended(mesh):
+    mesh_points = np.array(mesh.points)
+    mesh_tris = np.array(mesh.elements)
+    mesh_neighbors = np.array(mesh.neighbors)
+
+    # print('mesh_tris = {0}'.format(list(mesh_tris)))
+    # print('neighbors = {0}'.format(list(mesh.neighbors)))
+    
+    # plt.triplot(mesh_points[:, 0], mesh_points[:, 1], mesh_tris)
+    # plt.aspect(1)
+    # plt.show()
+
+    # for
+    tris = []
+    # tris_d = []
+    for i, tri_ in enumerate(mesh_tris):
+        print('tri_ = {0}'.format(tri_))
+    
+        tri_l = []
+        for tri_vert in tri_:
+            vert = mesh_points[tri_vert].tolist()
+            vert += [0]
+            print('tri_vert = {0}'.format(vert))
+            # print()
+            tri_l.append(vert)
+        # tris.append(tri_l)
+        tris.append({
+            'vertices': tri_l,
+            'neighbors': list(mesh_neighbors[i]),
+            'color': np.random.uniform(0, 1, (3,)),
+            'state': 0., # np.random.uniform(0, 1)
+            'state_o': 0., # np.random.uniform(0, 1)
+        })
+
+    print('tris = {0}'.format(tris))
+    return tris
+
+def mesh_get_neighbors(mesh):
+    nbrs = mesh.neighbors
+    valid_neighbors_all = []
+    for nbr in nbrs:
+        valid_neighbors_all.append([_ for _ in nbr if _ > -1])
+    return(valid_neighbors_all)
+
+def mesh_update_state(cnt, mesh, tris):
+    # for tri_i, neighbors in enumerate(mesh.neighbors):
+    # print(cnt)
+    for tri_i, tri in enumerate(tris):
+
+        x_ = tris[tri_i]['state']
+        # print(tri_i, x_)
         
         # periodic activation
-        if tri_i == 0 and cnt % 100 == 0:
-            print('refreshing state')
-            # tris_d[tri_i]['state'] = 1.0
-            x_ = 1.0
-            tris_d[tri_i]['state'] = x_
+        # if tri_i == 0 and cnt % 100 == 0:
+        if np.random.uniform() > 0.999:
+            # print('refreshing state')
+            # tris[tri_i]['state'] = 1.0
+            x_ = 2.0 + np.random.uniform(0, 2)
+            # tris[tri_i]['state'] = x_
         
         # print(tri_i, neighbors)
 
-        valid_neighbors = [_ for _ in neighbors if _ > -1]
-        
-        # # print(valid_neighbors)
+        # print(valid_neighbors)
         # for v_n in valid_neighbors:
+        for v_n in tri['neighbors']:
+            if v_n < 0:
+                continue
             
-        #     if tris_d[v_n]['state'] > 0.1:
-        #         x_ = 0.0 * tris_d[tri_i]['state'] + (0.9 * tris_d[v_n]['state'])
-                # x_ = 0.5 * tris_d[tri_i]['state'] + (0.5 * tris_d[valid_neighbors[0]]['state'])
-        
-        # hexagon circular rule
-        if len(valid_neighbors) < 2:
-            continue
-        
-        if tris_d[valid_neighbors[0]]['state'] > tris_d[tri_i]['state']:
-            x_ = 0.5 * tris_d[tri_i]['state'] + (0.5 * tris_d[valid_neighbors[0]]['state'])
-        elif tris_d[valid_neighbors[1]]['state'] > tris_d[tri_i]['state']:
-            x_ = 0.5 * tris_d[tri_i]['state'] + (0.5 * tris_d[valid_neighbors[1]]['state'])
-        else:
-            x_ = 0.9 * tris_d[tri_i]['state']
-        
-        # tris_d[tri_i]['state'] = 1.01 * tris_d[tri_i]['state'] * (1 - tris_d[valid_neighbors[1]]['state']) * (1 - tris_d[valid_neighbors[0]]['state'])
-        # tris_d[tri_i]['state'] = 1.01 * tris_d[tri_i]['state'] * (1 - tris_d[valid_neighbors[1]]['state']) * (1 - tris_d[valid_neighbors[0]]['state'])
-        
-        # if tris_d[valid_neighbors[0]]['state'] > 0.9:
-        #     x_ = 0.1 * tris_d[tri_i]['state'] + (0.9 * tris_d[valid_neighbors[0]]['state'])
-        # else:
-        #     x_ = 0.96 * tris_d[tri_i]['state']
+            if tris[v_n]['state'] > 0.0:
+                # x_ = 0.0 * tris[tri_i]['state'] + (0.9 * tris[v_n]['state'])
+                # x_ = 0.5 * tris[tri_i]['state'] + (0.5 * tris[v_n]['state'])
+                x_ += 0.33 * tris[v_n]['state']
+                tris[v_n]['state'] -= 0.33 * tris[v_n]['state']
+                
+        # tris[tri_i]['state'] *= 0.5
+        # x_ = np.tanh(x_)
+        # x_ = np.sqrt(x_)
+        x_ = 0.92 * x_
+        tris[tri_i]['state'] = x_
+        tris[tri_i]['state_o'] = np.tanh(x_)
 
-        # if tris_d[valid_neighbors[1]]['state'] > 0.8:
-        #     x_ = 0.1 * tris_d[tri_i]['state'] + (0.9 * tris_d[valid_neighbors[1]]['state'])
+        # # hexagon circular rule
+        # if len(valid_neighbors) < 2:
+        #     continue
+        
+        # if tris[valid_neighbors[0]]['state'] > tris[tri_i]['state']:
+        #     x_ = 0.5 * tris[tri_i]['state'] + (0.5 * tris[valid_neighbors[0]]['state'])
+        # elif tris[valid_neighbors[1]]['state'] > tris[tri_i]['state']:
+        #     x_ = 0.5 * tris[tri_i]['state'] + (0.5 * tris[valid_neighbors[1]]['state'])
         # else:
-        #     x_ = 0.96 * tris_d[tri_i]['state']
+        #     x_ = 0.9 * tris[tri_i]['state']
+        
+        # tris[tri_i]['state'] = 1.01 * tris[tri_i]['state'] * (1 - tris[valid_neighbors[1]]['state']) * (1 - tris[valid_neighbors[0]]['state'])
+        # tris[tri_i]['state'] = 1.01 * tris[tri_i]['state'] * (1 - tris[valid_neighbors[1]]['state']) * (1 - tris[valid_neighbors[0]]['state'])
+        
+        # if tris[valid_neighbors[0]]['state'] > 0.9:
+        #     x_ = 0.1 * tris[tri_i]['state'] + (0.9 * tris[valid_neighbors[0]]['state'])
+        # else:
+        #     x_ = 0.96 * tris[tri_i]['state']
+
+        # if tris[valid_neighbors[1]]['state'] > 0.8:
+        #     x_ = 0.1 * tris[tri_i]['state'] + (0.9 * tris[valid_neighbors[1]]['state'])
+        # else:
+        #     x_ = 0.96 * tris[tri_i]['state']
             
-        # x_ = (0.99 * tris_d[valid_neighbors[0]]['state'])
+        # x_ = (0.99 * tris[valid_neighbors[0]]['state'])
         # np.tanh(x_ * 2 - 1) / 2 + 0.5
         
-        tris_d[tri_i]['state'] = x_
-
         # for n_i, neighbor in enumerate(neighbors):
         #     # print(n_i, neighbors)
         #     if n_i % 2 == 0:
@@ -307,15 +374,38 @@ def Cube(cnt):
         #         ndir = 1
 
         #     if neighbor > 0:
-        #         # if tris_d[tri_i]['state'] > 0.9:
+        #         # if tris[tri_i]['state'] > 0.9:
         #         #     mdir = -1.0
-        #         # elif tris_d[tri_i]['state'] < 0.1:
+        #         # elif tris[tri_i]['state'] < 0.1:
         #         #     mdir = 1.0
-        #         #     # tris_d[tri_i]['state'] += mdir * 0.01 * tris_d[n_i]['state']
+        #         #     # tris[tri_i]['state'] += mdir * 0.01 * tris[n_i]['state']
                 
-        #         # tris_d[tri_i]['state'] += ndir * mdir * 0.05 * tris_d[n_i]['state']
-        #         tris_d[tri_i]['state'] = 3.2 * tris_d[n_i]['state'] * (1 - tris_d[tri_i]['state'])
-        # # tris_d[tri_i]['state'] = 3.2 * tris_d[tri_i]['state'] * (1 - tris_d[tri_i]['state'])
+        #         # tris[tri_i]['state'] += ndir * mdir * 0.05 * tris[n_i]['state']
+        #         tris[tri_i]['state'] = 3.2 * tris[n_i]['state'] * (1 - tris[tri_i]['state'])
+        # # tris[tri_i]['state'] = 3.2 * tris[tri_i]['state'] * (1 - tris[tri_i]['state'])
+
+class runUpdate(threading.Thread):
+    def __init__(self, mesh, tris):
+        super(runUpdate, self).__init__()
+
+        self.isrunning = True
+        assert mesh is not None, "Need to supply mesh argument" 
+        assert tris is not None, "Need to supply tris argument" 
+        self.mesh = mesh
+        self.tris = tris
+        self.cnt = 0
+        
+    def run(self):
+        while self.isrunning:
+            # print('runUpdate')
+            mesh_update_state(self.cnt, self.mesh, self.tris)
+            self.cnt += 1
+            time.sleep(1/20.)
+
+def Cube(cnt, mesh, tris, valid_neighbors_all):
+    mdir = 1.0
+    mesh_points = np.array(mesh.points)
+    mesh_tris = np.array(mesh.elements)
     
     glBegin(GL_TRIANGLES)
     # glColor3fv(vertcolors[j] * vertstate[j])
@@ -324,14 +414,14 @@ def Cube(cnt):
     for i, tri in enumerate(tris):
 
         # if i > 0:
-        #     tris_d[i]['state'] += 0.05 * tris_d[i-1]['state']
+        #     tris[i]['state'] += 0.05 * tris[i-1]['state']
         # if i < (len(tris) - 1):
-        #     tris_d[i]['state'] -= 0.13 * tris_d[i+1]['state'] + np.random.uniform(-1e-2, 1e-2)
+        #     tris[i]['state'] -= 0.13 * tris[i+1]['state'] + np.random.uniform(-1e-2, 1e-2)
 
         # glColor3fv([np.random.uniform(), 1, 1])
-        glColor3fv(tris_d[i]['color'] * tris_d[i]['state'])
+        glColor3fv(tris[i]['color'] * tris[i]['state'])
         
-        for vert in tri:
+        for vert in tri['vertices']:
             # print(vert)
             glVertex3fv(vert)
     glEnd()
@@ -355,17 +445,37 @@ def Cube(cnt):
     # glEnd()
     
 def main():
+
+    params = get_params(obj='rect', c=1)
+    # params = get_params(obj='line', c=1)
+    print('params = {0}'.format(params))
+
+    mesh = make_mesh_meshpy_triangle(params)
+
+    valid_neighbors_all = mesh_get_neighbors(mesh)
+
+    tris = mesh_extended(mesh)
+
+    ru = runUpdate(mesh, tris)
+    ru.start()
+    
     pygame.init()
     display = (800,600)
     pygame.display.set_mode(display, DOUBLEBUF|OPENGL)
 
     # gluPerspective(45, (display[0]/display[1]), 0.1, 50.0)
     gluPerspective(60, (display[0]/display[1]), 0.1, 50.0)
+    # hexagon
+    if params['obj'] == 'hexagon':
+        glTranslatef(-0.0, 0.0, -5)
+    # line
+    elif params['obj'] == 'line':
+        glTranslatef(-6.0, 0.0, -10)
+    # rect
+    elif params['obj'] == 'rect':
+        glTranslatef(0, 0, -10)
 
-    glTranslatef(-0.0, 0.0, -5)
-    # glTranslatef(-6.0, 0.0, -5)
-    # glTranslatef(-6.0, 0.0, -20)
-
+    # glScalef(2.0, 2.0, 2.0)
     glScalef(3.0, 3.0, 3.0)
     
     running = True
@@ -376,12 +486,14 @@ def main():
             # if event.type == pygame.QUIT:
                 print('Got QUIT event')
                 running = False
+                ru.isrunning = False
+                ru.join()
                 pygame.quit()
                 quit()
 
         # glRotatef(1, 3, 3, 3)
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
-        Cube(cnt)
+        Cube(cnt, mesh, tris, valid_neighbors_all)
         cnt += 1
         pygame.display.flip()
         pygame.time.wait(20)
