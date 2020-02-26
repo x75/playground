@@ -11,9 +11,12 @@ see trimesh, networkx
 from __future__ import division
 from __future__ import absolute_import
 
-import pickle, sys, time, threading
+import pickle, sys, time, threading, argparse
+
 import pygame
 from pygame.locals import *
+
+from pprint import pformat
 
 from OpenGL.GL import *
 from OpenGL.GLU import *
@@ -26,28 +29,13 @@ import matplotlib.pyplot as plt
 import meshpy.triangle as triangle
 # use meshpy
 from meshpy.triangle import MeshInfo, build
+import trimesh
 
 import numpy as np
 import numpy.linalg as la
 from six.moves import range
 
 import jw_meshtools as mt
-
-def get_params(obj='line', c=1):
-    hc1 = np.sin(np.deg2rad(60)) * c
-    r_i = hc1/3
-    r_o = 2 * r_i
-    params = {
-        'obj': obj,
-        'c': 1,
-        'hc1': hc1,
-        'hc2': np.sqrt(3)/2 * c,
-        'r_i': r_i,
-        'r_o': r_o,
-        'c_2': ((c/2) * r_o) / hc1,
-    }
-    # 'r_o': np.sin(np.deg2rad(30)) * 1,
-    return params
 
 # def get_trigrid(num_x, num_y, c):
 #     hc = np.sqrt(3)/2 * c
@@ -154,35 +142,47 @@ def get_params(obj='line', c=1):
 #     main()
 
 def make_vertex_facets_hexagon(params):
-    # hexagon mesh
-    points = [(0, 0)]
+    """make_vertex_facets_hexagon
+
+    create a list of 2D vertices and line facets that make up a hexagon
+    """
+    # vertices, points
+    points = [(0, 0, 0)]
     for ang in [0, 60, 120, 180, 240, 300]:
         points.append(
             (np.cos(np.deg2rad(ang)) * params['c'],
-             np.sin(np.deg2rad(ang)) * params['c'])
+             np.sin(np.deg2rad(ang)) * params['c'],
+             0.0)
         )
+    # facets := set of point pairs defining what again?
     facets = [
-        [0,1],
-        [0,2],
-        [0,3],
-        [0,4],
-        [0,5],
-        [0,6],
-        [1,2],
-        [2,3],
-        [3,4],
-        [4,5],
-        [5,6],
-        [6,1],
+        [0,1], [0,2], [0,3],
+        [0,4], [0,5], [0,6],
+        [1,2], [2,3], [3,4],
+        [4,5], [5,6], [6,1],
         # [2,3],
         # [3,4],
         # [4,5],
         # [5,6],
         # [6,4],
     ]
-    return (points, facets)
+    # set of edges
+    faces = [
+        [0, 1, 2],
+        [0, 2, 3],
+        [0, 3, 4],
+        [0, 4, 5],
+        [0, 5, 6],
+        [0, 1, 6],
+    ]
+    
+    return (points, facets, faces)
 
 def make_vertex_facets_line(params):
+    """make_vertex_facets_line
+
+    create a list of 2d points and triangle facets that make up a line built
+    """
     points = [(0,0)]
     for trans in [0, 1, 2, 3, 4]:
         angs = [0, 60]
@@ -207,6 +207,10 @@ def make_vertex_facets_line(params):
     return (points, facets)
 
 def make_vertex_facets_rect(params):
+    """make_vertex_facets_rect
+
+    create a list of 2d point and triangle facets that fill up an outer rectangle
+    """
     length = 0.15
     # Simple mesh rectangle
     p,v=mt.RectangleSegments([-2, -1.5],[2, 1.5],edge_length=length)
@@ -229,11 +233,20 @@ def make_vertex_facets_rect(params):
     # mt.DoTriMesh(p,v,edge_length=length,holes=[(-0.4,0.4),(0.95,-0.8)])
     return (p, v)
 
+def make_vertex_facets_load(params):
+    p = None
+    v = None
+    return (p, v)
 
-def make_mesh_meshpy_triangle(params):
+def make_mesh_triangle_meshpy(params):
+    """make_mesh_meshpy_triangle
+
+    create mesh using meshpy.triangle.MeshInfo
+    """
     c = params['c']
     mesh_info = MeshInfo()
 
+    # generate vertices and facets
     if params['obj'] == 'line':
         points, facets = make_vertex_facets_line(params)
     elif params['obj'] == 'hexagon':
@@ -241,12 +254,15 @@ def make_mesh_meshpy_triangle(params):
     elif params['obj'] == 'rect':
         points, facets = make_vertex_facets_rect(params)
     
-    print('points = {0}\nfacets = {1}'.format(points, facets))
+    print('points = {0}\nfacets = {1}'.format(pformat(points), pformat(facets)))
 
+    # copy points data into mesh
     mesh_info.set_points(points)
-    
+
+    # copy facets data into mesh
     mesh_info.set_facets(facets)
 
+    # build the mesh
     mesh = build(mesh_info)
 
     # writing objects
@@ -258,7 +274,43 @@ def make_mesh_meshpy_triangle(params):
     # sys.exit()
     return mesh
 
-def mesh_extended(mesh):
+def make_mesh_triangle_trimesh(params):
+    """make_mesh_triangle_trimesh
+
+    create mesh using trimesh.Trimesh
+    """
+    c = params['c']
+    mesh_info = MeshInfo()
+
+    # generate vertices and facets
+    if params['obj'] == 'line':
+        points, facets = make_vertex_facets_line(params)
+    elif params['obj'] == 'hexagon':
+        points, facets, faces = make_vertex_facets_hexagon(params)
+    elif params['obj'] == 'rect':
+        points, facets = make_vertex_facets_rect(params)
+    
+    print('points = {0}\nfacets = {1}'.format(pformat(points), pformat(facets)))
+
+    # mesh = trimesh.Trimesh(vertices=[[0, 0, 0], [0, 0, 1], [0, 1, 0]],
+    #                        faces=[[0, 1, 2]])
+
+    
+    
+    mesh = trimesh.Trimesh(vertices=points, faces=faces)
+
+    # print('mesh.edges = {0}'.format(mesh.edges))
+    
+    # writing objects
+    # mesh.write_vtk("trigrid.vtk")
+    # f = open('trigrid.pkl', 'wb')
+    # pickle.dump(mesh, f)
+    # f.close()
+    # joblib.dump(mesh, 'trigrid.pkl')
+    # sys.exit()
+    return mesh
+
+def mesh_extended_meshpy(mesh):
     mesh_points = np.array(mesh.points)
     mesh_tris = np.array(mesh.elements)
     mesh_neighbors = np.array(mesh.neighbors)
@@ -295,14 +347,63 @@ def mesh_extended(mesh):
     print('tris = {0}'.format(tris))
     return tris
 
-def mesh_get_neighbors(mesh):
+def mesh_extended_trimesh(mesh):
+    mesh_vertices = np.array(mesh.vertices)
+    mesh_faces = np.array(mesh.faces)
+    mesh_neighbors = np.array(mesh.face_adjacency)
+    print('face_adjacency = {0}'.format(mesh.face_adjacency))
+    
+    print('mesh_vertices = {0}'.format(list(mesh_vertices)))
+    print('mesh_faces = {0}'.format(list(mesh_faces)))
+    print('mesh_neighbors = {0}'.format(list(mesh_neighbors)))
+    
+    # plt.triplot(mesh_vertices[:, 0], mesh_vertices[:, 1], mesh_tris)
+    # plt.aspect(1)
+    # plt.show()
+
+    # for
+    tris = []
+    # tris_d = []
+    for i, tri_ in enumerate(mesh_faces):
+        print('tri_ = {0}'.format(tri_))
+    
+        tri_l = []
+        for tri_vert in tri_:
+            vert = mesh_vertices[tri_vert].tolist()
+            # vert += [0]
+            print('tri_vert = {0}'.format(vert))
+            # print()
+            tri_l.append(vert)
+        # tris.append(tri_l)
+        tris.append({
+            'vertices': tri_l,
+            'neighbors': list(mesh_neighbors[i]),
+            'color': np.random.uniform(0, 1, (3,)),
+            'state': 0., # np.random.uniform(0, 1)
+            'state_o': 0., # np.random.uniform(0, 1)
+        })
+
+    print('tris = {0}'.format(tris))
+    return tris
+
+def mesh_get_neighbors_meshpy(mesh):
     nbrs = mesh.neighbors
     valid_neighbors_all = []
     for nbr in nbrs:
         valid_neighbors_all.append([_ for _ in nbr if _ > -1])
     return(valid_neighbors_all)
 
+def mesh_get_neighbors_trimesh(mesh):
+    # nbrs = mesh.neighbors
+    nbrs = mesh.face_adjacency
+    valid_neighbors_all = []
+    for nbr in nbrs:
+        valid_neighbors_all.append([_ for _ in nbr if _ > -1])
+    return(valid_neighbors_all)
+
 def mesh_update_state(cnt, mesh, tris):
+    event_density = 0.001
+    event_density = 0.01
     # for tri_i, neighbors in enumerate(mesh.neighbors):
     # print(cnt)
     for tri_i, tri in enumerate(tris):
@@ -312,7 +413,7 @@ def mesh_update_state(cnt, mesh, tris):
         
         # periodic activation
         # if tri_i == 0 and cnt % 100 == 0:
-        if np.random.uniform() > 0.999:
+        if np.random.uniform() < event_density:
             # print('refreshing state')
             # tris[tri_i]['state'] = 1.0
             x_ = 2.0 + np.random.uniform(0, 2)
@@ -443,45 +544,123 @@ def Cube(cnt, mesh, tris, valid_neighbors_all):
     # glColor3fv([1, 0, 0])
     # glVertex3fv([0, 0, 0])
     # glEnd()
+
+def Cube_trimesh(cnt, mesh, tris, valid_neighbors_all):
+    mdir = 1.0
+    mesh_points = np.array(mesh.vertices)
+    mesh_tris = np.array(mesh.faces)
     
+    glBegin(GL_TRIANGLES)
+    # glColor3fv(vertcolors[j] * vertstate[j])
+    # glVertex3fv(vertices[vertex_i])
+    # glColor3fv([1, 1, 1])
+    for i, tri in enumerate(tris):
+
+        # if i > 0:
+        #     tris[i]['state'] += 0.05 * tris[i-1]['state']
+        # if i < (len(tris) - 1):
+        #     tris[i]['state'] -= 0.13 * tris[i+1]['state'] + np.random.uniform(-1e-2, 1e-2)
+
+        # glColor3fv([np.random.uniform(), 1, 1])
+        glColor3fv(tris[i]['color'] * tris[i]['state'])
+        
+        for vert in tri['vertices']:
+            # print(vert)
+            glVertex3fv(vert)
+    glEnd()
+
+    # draw lines
+    glBegin(GL_LINES)
+    for edge in mesh.facets:
+        glColor3f(1, 1, 1)
+        # print(edge)
+        # glScalef(10.0, 10.0, 10.0)
+        # glBegin(GL_TRIANGLES)
+        # for edge in edges:
+        for vertex in edge:
+            # print(vertex, mesh_points[vertex])
+            glVertex3fv(mesh_points[vertex].tolist())
+    glEnd()
+        
+    # glBegin(GL_POINTS)
+    # glColor3fv([1, 0, 0])
+    # glVertex3fv([0, 0, 0])
+    # glEnd()
+
+def get_params(obj='line', c=1):
+    hc1 = np.sin(np.deg2rad(60)) * c
+    r_i = hc1/3
+    r_o = 2 * r_i
+    params = {
+        'obj': obj,
+        'c': c,
+        'hc1': hc1,
+        'hc2': np.sqrt(3)/2 * c,
+        'r_i': r_i,
+        'r_o': r_o,
+        'c_2': ((c/2) * r_o) / hc1,
+    }
+    # 'r_o': np.sin(np.deg2rad(30)) * 1,
+    return params
+
 def main():
+    # command line arguments
+    parser = argparse.ArgumentParser()
 
-    params = get_params(obj='rect', c=1)
-    # params = get_params(obj='line', c=1)
-    print('params = {0}'.format(params))
+    parser.add_argument('-m', '--mode', type=str, default='hexagon', help='Mesh mode [hexagon] (hexagon, line, rect)')
 
-    mesh = make_mesh_meshpy_triangle(params)
-
-    valid_neighbors_all = mesh_get_neighbors(mesh)
-
-    tris = mesh_extended(mesh)
-
-    ru = runUpdate(mesh, tris)
-    ru.start()
+    args = parser.parse_args()
     
+    # get mesh generation parameters
+    params = get_params(obj=args.mode, c=1)
+    print('params = {0}'.format(pformat(params)))
+
+    # create a mesh with mesh generation parameters
+    # mesh = make_mesh_triangle_meshpy(params)
+    mesh = make_mesh_triangle_trimesh(params)
+
+    # compute the neighbors for each cell
+    # valid_neighbors_all = mesh_get_neighbors_meshpy(mesh)
+    valid_neighbors_all = mesh_get_neighbors_trimesh(mesh)
+    print('valid_neighbors_all = {0}'.format(valid_neighbors_all))
+    
+    # extend the mesh with an attribute dictionary
+    # tris = mesh_extended_meshpy(mesh)
+    tris = mesh_extended_trimesh(mesh)
+
+    # create state update thread
+    ru = runUpdate(mesh, tris)
+    # start state update thread
+    ru.start()
+
+    # initialize pygame and OpenGL
     pygame.init()
     display = (800,600)
     pygame.display.set_mode(display, DOUBLEBUF|OPENGL)
 
     # gluPerspective(45, (display[0]/display[1]), 0.1, 50.0)
     gluPerspective(60, (display[0]/display[1]), 0.1, 50.0)
+    
     # hexagon
-    if params['obj'] == 'hexagon':
+    if args.mode == 'hexagon':
         glTranslatef(-0.0, 0.0, -5)
     # line
-    elif params['obj'] == 'line':
+    elif args.mode == 'line':
         glTranslatef(-6.0, 0.0, -10)
     # rect
-    elif params['obj'] == 'rect':
+    elif args.mode == 'rect':
         glTranslatef(0, 0, -10)
 
     # glScalef(2.0, 2.0, 2.0)
     glScalef(3.0, 3.0, 3.0)
-    
+
+    # start main loop
     running = True
     cnt = 0
     while running:
+        # event handling
         for event in pygame.event.get():
+            # quit event
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
             # if event.type == pygame.QUIT:
                 print('Got QUIT event')
@@ -493,12 +672,16 @@ def main():
 
         # glRotatef(1, 3, 3, 3)
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
-        Cube(cnt, mesh, tris, valid_neighbors_all)
+
+        # render function on mesh
+        # Cube(cnt, mesh, tris, valid_neighbors_all)
+        Cube_trimesh(cnt, mesh, tris, valid_neighbors_all)
+
+        # bookkeeping
         cnt += 1
         pygame.display.flip()
         pygame.time.wait(20)
         # pygame.time.wait(50)
-
 
 if __name__ == '__main__':
     main()

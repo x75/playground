@@ -1,6 +1,5 @@
 import pygame
 from pygame.locals import *
-import trimesh
 
 from OpenGL.GL import *
 from OpenGL.GLU import *
@@ -12,6 +11,7 @@ from itertools import combinations
 
 from scipy.spatial.transform import Rotation as R
 
+import trimesh
 from meshpy.tet import MeshInfo, build
 
 # vertices = (
