@@ -210,7 +210,7 @@ def LineSegments(P1,P2,num_points=10,edge_length=-1):
     p2=np.array(P2)
     number_points=np.floor(np.sqrt(np.sum((p2-p1)**2))/edge_length)+1
   
-  t=np.linspace(0,1,number_points)
+  t=np.linspace(0,1,int(number_points))
   points=[(P1[0]+param*(P2[0]-P1[0]),P1[1]+param*(P2[1]-P1[1])) for param in t]
   vertices=[(j,j+1) for j in range(0,len(points)-1,1)]
   return points,vertices;
@@ -221,7 +221,8 @@ def LineSegments(P1,P2,num_points=10,edge_length=-1):
 def RectangleSegments(P1,P2,num_points=60,edge_length=-1):
   P11=[P2[0],P1[1]]
   P22=[P1[0],P2[1]]  
-  npoints=np.floor(num_points/4)
+  npoints=np.floor(num_points/4).astype(int)
+  print('P1 {0}, P11 {1}, npoints {2}, edge_length {3}'.format(P1,P11,npoints,edge_length))
   p_1,v_1=LineSegments(P1,P11,npoints,edge_length)
   p_2,v_2=LineSegments(P11,P2,npoints,edge_length)  
   p_3,v_3=LineSegments(P2,P22,npoints,edge_length)
