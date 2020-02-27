@@ -13,133 +13,29 @@ from __future__ import absolute_import
 
 import pickle, sys, time, threading, argparse
 
+import numpy as np
+import numpy.linalg as la
+from six.moves import range
+from pprint import pformat
+
 import pygame
 from pygame.locals import *
-
-from pprint import pformat
 
 from OpenGL.GL import *
 from OpenGL.GLU import *
 
-import numpy as np
 from scipy.spatial.transform import Rotation as R
 import joblib
-
 import matplotlib.pyplot as plt
-import meshpy.triangle as triangle
+
 # use meshpy
+import meshpy.triangle as triangle
 from meshpy.triangle import MeshInfo, build
+# use trimesh
 import trimesh
 
-import numpy as np
-import numpy.linalg as la
-from six.moves import range
-
+# meshpy examples toolkit
 import jw_meshtools as mt
-
-# def get_trigrid(num_x, num_y, c):
-#     hc = np.sqrt(3)/2 * c
-#     grid = []
-#     # np.cos(np.deg2rad(30)) * r_o, np.sin(np.deg2rad(30)) * r_o
-#     c_ = np.cos(np.deg2rad(30)) * r_o
-#     h_ = np.sin(np.deg2rad(30)) * r_o
-#     for i_y in range(num_y):
-#         col = []
-#         if i_y % 2 == 0:
-#             off_x = 0
-#         else:
-#             off_x = c/2
-            
-#         for i_x in range(num_x):
-#             if i_x % 2 == 0:
-#                 off_y = h_
-#             else:
-#                 off_y = 0
-
-#             col.append([i_x * c_ - off_x, i_y * hc + off_y])
-#         grid.append(col)
-#     return grid
-
-# trigrid = get_trigrid(4, 2, 1)
-# print('trigrid = {0}'.format(trigrid))
-
-# # define triangle / base shape
-# tri2d = np.array([
-#     [-0.5, 0],
-#     [0.5, 0],
-#     [0, np.sin(np.deg2rad(60)) * 1]
-# ])
-
-
-# tri3d = [
-#     [-0.5, -r_i, 0],
-#     [0.5, -r_i, 0],
-#     [0, hc1-r_i, 0]
-# ]
-
-# rot = R.from_euler('z', -60, degrees=True).as_matrix()
-# print('rot = {0}'.format(rot))
-# # Mrot = r.as_matrix()
-
-# # iterate base shape to create grid
-# x = np.array(tri3d)
-# # x_tr = np.array([np.cos(np.deg2rad(30)) * r_o, np.sin(np.deg2rad(30)) * r_o, 0])
-# x_tr = np.array([np.cos(np.deg2rad(30)) * r_o, np.sin(np.deg2rad(30)) * r_o, 0])
-
-# print('x = {0}'.format(x))
-# tris = []
-# # for i in range(1):
-# #     x = np.dot(rot, x.T).T
-# #     print('x = {0}'.format(x))
-# #     # tris.append(x + (i * hc1/2))
-# #     tris.append(x + x_tr)
-
-# for i, trigrid_col in enumerate(trigrid):
-#     for j, trigrid_row in enumerate(trigrid_col):
-#         x_tr = np.array(trigrid_row + [0])
-#         if j % 2 == 0:
-#             x_ = np.dot(rot, x.T).T
-#         else:
-#             x_ = x
-#         tris.append(x_ + x_tr)
-
-# # rotate / translate
-
-# def round_trip_connect(start, end):
-#     return [(i, i+1) for i in range(start, end)] + [(end, start)]
-
-# def main_triangle():
-#     points = [(1, 0), (1, 1), (-1, 1), (-1, -1), (1, -1), (1, 0)]
-#     facets = round_trip_connect(0, len(points)-1)
-
-#     circ_start = len(points)
-#     points.extend(
-#             (3 * np.cos(angle), 3 * np.sin(angle))
-#             for angle in np.linspace(0, 2*np.pi, 30, endpoint=False))
-
-#     facets.extend(round_trip_connect(circ_start, len(points)-1))
-
-#     def needs_refinement(vertices, area):
-#         bary = np.sum(np.array(vertices), axis=0)/3
-#         max_area = 0.001 + (la.norm(bary, np.inf)-1)*0.01
-#         return bool(area > max_area)
-
-#     info = triangle.MeshInfo()
-#     info.set_points(points)
-#     info.set_holes([(0, 0)])
-#     info.set_facets(facets)
-
-#     mesh = triangle.build(info, refinement_func=needs_refinement)
-
-#     mesh_points = np.array(mesh.points)
-#     mesh_tris = np.array(mesh.elements)
-
-#     # import matplotlib.pyplot as pt
-#     pt.triplot(mesh_points[:, 0], mesh_points[:, 1], mesh_tris)
-#     pt.show()
-
-# if __name__ == "__main__":
-#     main()
 
 def make_vertex_facets_hexagon(params):
     """make_vertex_facets_hexagon
@@ -147,7 +43,7 @@ def make_vertex_facets_hexagon(params):
     create a list of 2D vertices and line facets that make up a hexagon
     """
     # vertices, points
-    dim = 2
+    dim = params['dim']
     if dim == 2:
         points = [(0, 0)]
         for ang in [0, 60, 120, 180, 240, 300]:
@@ -195,7 +91,7 @@ def make_vertex_facets_line(params):
 
     create a list of 2d points and triangle facets that make up a line built
     """
-    dim = 2
+    dim = params['dim']
     if dim == 2:
         points = [(0, 0)]
         for trans in [0, 1, 2, 3, 4]:
@@ -708,31 +604,33 @@ class meshMeshpy(object):
         # glVertex3fv([0, 0, 0])
         # glEnd()
 
-def get_params(obj='line', c=1):
+def get_params(obj='line', c=1, dim=3):
     hc1 = np.sin(np.deg2rad(60)) * c
     r_i = hc1/3
     r_o = 2 * r_i
     params = {
         'obj': obj,
         'c': c,
+        'dim': dim,
         'hc1': hc1,
         'hc2': np.sqrt(3)/2 * c,
         'r_i': r_i,
         'r_o': r_o,
         'c_2': ((c/2) * r_o) / hc1,
     }
-    # 'r_o': np.sin(np.deg2rad(30)) * 1,
     return params
 
 def main(args):
     
     # get mesh generation parameters
-    params = get_params(obj=args.mode, c=1)
-    print('params = {0}'.format(pformat(params)))
 
     if args.meshlib == 'trimesh':
+        params = get_params(obj=args.mode, c=1, dim=3)
+        print('params = {0}'.format(pformat(params)))
         mesh = meshTrimesh(**params)
     elif args.meshlib == 'meshpy':
+        params = get_params(obj=args.mode, c=1, dim=2)
+        print('params = {0}'.format(pformat(params)))
         mesh = meshMeshpy(**params)
     
     # create state update thread
@@ -782,9 +680,7 @@ def main(args):
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
 
         # render function on mesh
-
         mesh.Cube(cnt, mesh.mesh, mesh.tris, mesh.valid_neighbors_all)
-
         
         # bookkeeping
         cnt += 1
