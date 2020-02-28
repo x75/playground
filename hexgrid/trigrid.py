@@ -37,6 +37,14 @@ import trimesh
 # meshpy examples toolkit
 import jw_meshtools as mt
 
+def dl2ld(DL):
+    v = [dict(zip(DL,t)) for t in zip(*DL.values())]
+    return v
+
+def ld2dl(LD):
+    v = {k: [dic[k] for dic in LD] for k in LD[0]}
+    return v
+    
 def make_vertex_facets_hexagon(params):
     """make_vertex_facets_hexagon
 
@@ -61,7 +69,7 @@ def make_vertex_facets_hexagon(params):
                  0.0)
             )
             
-    print('points = {0}'.format(pformat(points)))
+    # print('points = {0}'.format(pformat(points)))
     # facets := set of point pairs defining what again?
     facets = [
         [0,1], [0,2], [0,3],
@@ -194,112 +202,6 @@ def make_vertex_facets_load(params):
     v = None
     return (p, v)
 
-def mesh_update_state(cnt, mesh, tris, density):
-    event_density = density # 0.0001
-    # event_density = 0.001
-    # event_density = 0.01
-    # event_density = 0.1
-    # for tri_i, neighbors in enumerate(mesh.neighbors):
-    # print(cnt)
-    for tri_i, tri in enumerate(tris):
-
-        x_ = tris[tri_i]['state']
-        # print(tri_i, x_)
-        y_ = np.zeros_like(x_)
-        # periodic activation
-
-        # y_ += 0.05 * np.sin((cnt/20.0) * tris[tri_i]['freq'] * 2 * np.pi)
-        # y_ += 0.3 * np.sin(cnt/1000.0)**2
-        
-        # if tri_i == 0 and cnt % 100 == 0:
-        # if tri_i == 0 and np.random.uniform() < event_density:
-        if np.random.uniform() < event_density:
-            # print('refreshing state')
-            # tris[tri_i]['state'] = 1.0
-            y_ += 2.0 + np.random.uniform(0, 2)
-            # tris[tri_i]['state'] = x_
-
-        
-        # print(tri_i, neighbors)
-        
-        # print(valid_neighbors)
-        # for v_n in valid_neighbors:
-        for v_n in tri['neighbors']:
-            if v_n < 0:
-                continue
-            
-            if tris[v_n]['state'] > 0.0:
-                # x_ = 0.0 * tris[tri_i]['state'] + (0.9 * tris[v_n]['state'])
-                # x_ = 0.5 * tris[tri_i]['state'] + (0.5 * tris[v_n]['state'])
-                # coupling = 0.05
-                coupling = 0.2
-                transfer = coupling * tris[v_n]['state']
-                y_ += transfer
-                tris[v_n]['state'] -= transfer # coupling * tris[v_n]['state']
-
-        
-        # tris[tri_i]['state'] *= 0.5
-        # x_ = np.tanh(x_)
-        # x_ = np.sqrt(x_)
-        
-        # x_ = 0.92 * x_
-        
-        # decay activation
-        # tris[tri_i]['state'] *= 0.98
-        tris[tri_i]['state'] *= 0.8
-
-        # add inputs
-        tris[tri_i]['state'] += y_
-
-        # output transfer function
-        # tris[tri_i]['state_o'] = np.log(tris[tri_i]['state'] + 1) * 2
-        tris[tri_i]['state_o'] = np.tanh(tris[tri_i]['state'] * 5)
-
-        # # hexagon circular rule
-        # if len(valid_neighbors) < 2:
-        #     continue
-        
-        # if tris[valid_neighbors[0]]['state'] > tris[tri_i]['state']:
-        #     x_ = 0.5 * tris[tri_i]['state'] + (0.5 * tris[valid_neighbors[0]]['state'])
-        # elif tris[valid_neighbors[1]]['state'] > tris[tri_i]['state']:
-        #     x_ = 0.5 * tris[tri_i]['state'] + (0.5 * tris[valid_neighbors[1]]['state'])
-        # else:
-        #     x_ = 0.9 * tris[tri_i]['state']
-        
-        # tris[tri_i]['state'] = 1.01 * tris[tri_i]['state'] * (1 - tris[valid_neighbors[1]]['state']) * (1 - tris[valid_neighbors[0]]['state'])
-        # tris[tri_i]['state'] = 1.01 * tris[tri_i]['state'] * (1 - tris[valid_neighbors[1]]['state']) * (1 - tris[valid_neighbors[0]]['state'])
-        
-        # if tris[valid_neighbors[0]]['state'] > 0.9:
-        #     x_ = 0.1 * tris[tri_i]['state'] + (0.9 * tris[valid_neighbors[0]]['state'])
-        # else:
-        #     x_ = 0.96 * tris[tri_i]['state']
-
-        # if tris[valid_neighbors[1]]['state'] > 0.8:
-        #     x_ = 0.1 * tris[tri_i]['state'] + (0.9 * tris[valid_neighbors[1]]['state'])
-        # else:
-        #     x_ = 0.96 * tris[tri_i]['state']
-            
-        # x_ = (0.99 * tris[valid_neighbors[0]]['state'])
-        # np.tanh(x_ * 2 - 1) / 2 + 0.5
-        
-        # for n_i, neighbor in enumerate(neighbors):
-        #     # print(n_i, neighbors)
-        #     if n_i % 2 == 0:
-        #         ndir = -1
-        #     else:
-        #         ndir = 1
-
-        #     if neighbor > 0:
-        #         # if tris[tri_i]['state'] > 0.9:
-        #         #     mdir = -1.0
-        #         # elif tris[tri_i]['state'] < 0.1:
-        #         #     mdir = 1.0
-        #         #     # tris[tri_i]['state'] += mdir * 0.01 * tris[n_i]['state']
-                
-        #         # tris[tri_i]['state'] += ndir * mdir * 0.05 * tris[n_i]['state']
-        #         tris[tri_i]['state'] = 3.2 * tris[n_i]['state'] * (1 - tris[tri_i]['state'])
-        # # tris[tri_i]['state'] = 3.2 * tris[tri_i]['state'] * (1 - tris[tri_i]['state'])
-
 class runUpdate(threading.Thread):
     def __init__(self, mesh, tris, density):
         super(runUpdate, self).__init__()
@@ -315,11 +217,163 @@ class runUpdate(threading.Thread):
     def run(self):
         while self.isrunning:
             # print('runUpdate')
-            mesh_update_state(self.cnt, self.mesh, self.tris, self.density)
+            self.mesh_update_state(self.cnt, self.mesh, self.tris, self.density)
             self.cnt += 1
             time.sleep(1/20.)
 
-class meshTrimesh(object):
+    def mesh_update_state(self, cnt, mesh, tris, density):
+        event_density = density # 0.0001
+        # event_density = 0.001
+        # event_density = 0.01
+        # event_density = 0.1
+        # for tri_i, neighbors in enumerate(mesh.neighbors):
+        # print(cnt)
+        for tri_i, tri in enumerate(tris):
+
+            x_ = tris[tri_i]['state']
+            # print(tri_i, x_)
+            y_ = np.zeros_like(x_)
+            # periodic activation
+
+            # y_ += 0.05 * np.sin((cnt/20.0) * tris[tri_i]['freq'] * 2 * np.pi)
+            # y_ += 0.3 * np.sin(cnt/1000.0)**2
+            
+            # if tri_i == 0 and cnt % 100 == 0:
+            # if tri_i == 0 and np.random.uniform() < event_density:
+            if np.random.uniform() < event_density:
+                # print('refreshing state')
+                # tris[tri_i]['state'] = 1.0
+                y_ += 2.0 + np.random.uniform(0, 2)
+                # tris[tri_i]['state'] = x_
+
+        
+            # print(tri_i, neighbors)
+        
+            # print(valid_neighbors)
+            # for v_n in valid_neighbors:
+            for v_n in tri['neighbors']:
+                if v_n < 0:
+                    continue
+            
+                if tris[v_n]['state'] > 0.0:
+                    # x_ = 0.0 * tris[tri_i]['state'] + (0.9 * tris[v_n]['state'])
+                    # x_ = 0.5 * tris[tri_i]['state'] + (0.5 * tris[v_n]['state'])
+                    # coupling = 0.05
+                    coupling = 0.2
+                    transfer = coupling * tris[v_n]['state']
+                    y_ += transfer
+                    tris[v_n]['state'] -= transfer # coupling * tris[v_n]['state']
+
+        
+            # tris[tri_i]['state'] *= 0.5
+            # x_ = np.tanh(x_)
+            # x_ = np.sqrt(x_)
+        
+            # x_ = 0.92 * x_
+        
+            # decay activation
+            # tris[tri_i]['state'] *= 0.98
+            tris[tri_i]['state'] *= 0.8
+            
+            # add inputs
+            tris[tri_i]['state'] += y_
+            
+            # output transfer function
+            # tris[tri_i]['state_o'] = np.log(tris[tri_i]['state'] + 1) * 2
+            tris[tri_i]['state_o'] = np.tanh(tris[tri_i]['state'] * 5)
+            
+class smnode(threading.Thread):
+    def __init__(self, *args, **kwargs):
+        super(smnode, self).__init__()
+
+        self.isrunning = True
+        
+        # assert mesh is not None, "Need to supply mesh argument" 
+        # assert tris is not None, "Need to supply tris argument" 
+        # self.mesh = mesh
+        # self.tris = tris
+        self.cnt = 0
+        self.smid = 0
+        self.density = np.random.uniform(0, 0.05)
+        self.freq = 1/self.density
+        self.neighbors = []
+        for k in ['smid', 'density', 'freq', 'neighbors']:
+            if k in kwargs:
+                setattr(self, k, kwargs[k])
+        
+    def run(self):
+        while self.isrunning:
+            print('smnode {0}'.format(self.smid))
+            # todo:
+            # - read inputs
+            # - compute output
+            
+            # self.mesh_update_state(self.cnt, self.mesh, self.tris, self.density)
+            self.cnt += 1
+            time.sleep(1/20.)
+
+    def mesh_update_state(self, cnt, mesh, tris, density):
+        event_density = density # 0.0001
+        # event_density = 0.001
+        # event_density = 0.01
+        # event_density = 0.1
+        # for tri_i, neighbors in enumerate(mesh.neighbors):
+        # print(cnt)
+        for tri_i, tri in enumerate(tris):
+
+            x_ = tris[tri_i]['state']
+            # print(tri_i, x_)
+            y_ = np.zeros_like(x_)
+            # periodic activation
+
+            # y_ += 0.05 * np.sin((cnt/20.0) * tris[tri_i]['freq'] * 2 * np.pi)
+            # y_ += 0.3 * np.sin(cnt/1000.0)**2
+            
+            # if tri_i == 0 and cnt % 100 == 0:
+            # if tri_i == 0 and np.random.uniform() < event_density:
+            if np.random.uniform() < event_density:
+                # print('refreshing state')
+                # tris[tri_i]['state'] = 1.0
+                y_ += 2.0 + np.random.uniform(0, 2)
+                # tris[tri_i]['state'] = x_
+
+        
+            # print(tri_i, neighbors)
+        
+            # print(valid_neighbors)
+            # for v_n in valid_neighbors:
+            for v_n in tri['neighbors']:
+                if v_n < 0:
+                    continue
+            
+                if tris[v_n]['state'] > 0.0:
+                    # x_ = 0.0 * tris[tri_i]['state'] + (0.9 * tris[v_n]['state'])
+                    # x_ = 0.5 * tris[tri_i]['state'] + (0.5 * tris[v_n]['state'])
+                    # coupling = 0.05
+                    coupling = 0.2
+                    transfer = coupling * tris[v_n]['state']
+                    y_ += transfer
+                    tris[v_n]['state'] -= transfer # coupling * tris[v_n]['state']
+
+        
+            # tris[tri_i]['state'] *= 0.5
+            # x_ = np.tanh(x_)
+            # x_ = np.sqrt(x_)
+        
+            # x_ = 0.92 * x_
+        
+            # decay activation
+            # tris[tri_i]['state'] *= 0.98
+            tris[tri_i]['state'] *= 0.8
+            
+            # add inputs
+            tris[tri_i]['state'] += y_
+            
+            # output transfer function
+            # tris[tri_i]['state_o'] = np.log(tris[tri_i]['state'] + 1) * 2
+            tris[tri_i]['state_o'] = np.tanh(tris[tri_i]['state'] * 5)
+            
+class meshTrimesh(threading.Thread):
     def __init__(self, *args, **kwargs):
         super(meshTrimesh, self).__init__()
         # create a mesh with mesh generation parameters
@@ -327,10 +381,25 @@ class meshTrimesh(object):
 
         # compute the neighbors for each cell
         self.valid_neighbors_all = self.mesh_get_neighbors_trimesh(self.mesh)
-        print('valid_neighbors_all = {0}'.format(self.valid_neighbors_all))
+        # print('valid_neighbors_all = {0}'.format(self.valid_neighbors_all))
         
         # extend the mesh with an attribute dictionary
         self.tris = self.mesh_extended_trimesh(self.mesh)
+
+        self.isrunning = True
+        self.cnt = 0
+        
+    def run(self):
+        while self.isrunning:
+            self.update()
+            time.sleep(1/20.)
+
+    def update(self):
+        self.cnt += 1
+
+        # todo
+        # - loop over neighbors
+        # - populate node inputs with external values
         
     def make_mesh_triangle_trimesh(self, **params):
         """make_mesh_triangle_trimesh
@@ -348,17 +417,18 @@ class meshTrimesh(object):
         elif params['obj'] == 'rect':
             points, facets, faces = make_vertex_facets_rect_trimesh(params)
         
-        print('points = {0}\nfacets = {1}'.format(pformat(points), pformat(facets)))
+        # print('points = {0}\nfacets = {1}'.format(pformat(points), pformat(facets)))
 
         # mesh = trimesh.Trimesh(vertices=[[0, 0, 0], [0, 0, 1], [0, 1, 0]],
         #                        faces=[[0, 1, 2]])
 
-        face_attributes = {
-            'color': len(faces) * [0],
-            'state': [],
-            'freq': [],
-        }
-        print('face_attributes = {0}'.format(face_attributes))
+        # face_attributes = {
+        #     'color': len(faces) * [0],
+        #     'state': [],
+        #     'freq': [],
+        # }
+        # print('face_attributes = {0}'.format(face_attributes))
+        
         mesh = trimesh.Trimesh(vertices=points, faces=faces)
 
         # print('mesh.edges = {0}'.format(mesh.edges))
@@ -381,35 +451,34 @@ class meshTrimesh(object):
         return(valid_neighbors_all)
 
     def mesh_extended_trimesh(self, mesh):
-        mesh_vertices = np.array(mesh.vertices)
-        mesh_faces = np.array(mesh.faces)
-        mesh_neighbors = np.array(mesh.face_adjacency)
+        """mesh_extended_trimesh
+
+        create mesh extended with face attributes
+        """
+        # print('mesh.vertices = {0}'.format(pformat(mesh.vertices)))
+        # print('mesh.faces = {0}'.format(pformat(mesh.faces)))
+        # print('mesh.face_adjacency = {0}'.format(pformat(mesh.face_adjacency)))
     
-        print('mesh_vertices = {0}'.format(pformat(mesh_vertices)))
-        print('mesh_faces = {0}'.format(pformat(mesh_faces)))
-        print('mesh_neighbors = {0}'.format(pformat(mesh_neighbors)))
-    
-        # plt.triplot(mesh_vertices[:, 0], mesh_vertices[:, 1], mesh_tris)
+        # plt.triplot(mesh.vertices[:, 0], mesh.vertices[:, 1], mesh_tris)
         # plt.aspect(1)
         # plt.show()
 
-        # for
+        # create list of attribute dictionaries
         tris = []
-        # tris_d = []
-        for i, tri_ in enumerate(mesh_faces):
-            print('tri_ = {0}'.format(tri_))
+        # loop over faces
+        for i, tri_ in enumerate(mesh.faces):
+            # print('tri_ = {0}'.format(tri_))
     
             tri_l = []
             for tri_vert in tri_:
-                vert = mesh_vertices[tri_vert].tolist()
-                # vert += [0]
-                print('tri_vert = {0}'.format(vert))
+                vert = mesh.vertices[tri_vert].tolist()
+                # print('tri_vert = {0}'.format(vert))
                 # print()
                 tri_l.append(vert)
-            # tris.append(tri_l)
+
             tris.append({
                 'vertices': tri_l,
-                'neighbors': [], # list(mesh_neighbors[i]),
+                'neighbors': [], # list(mesh.face_adjacency[i]),
                 'color': np.random.uniform(0, 1, (3,)),
                 # 'color': np.array([0.7, 0.2, 0.1]),
                 'freq': np.random.uniform(0.05, 0.2),
@@ -417,11 +486,17 @@ class meshTrimesh(object):
                 'state_o': 0., # np.random.uniform(0, 1)
             })
             
-        for nbr in mesh_neighbors:
+        for nbr in mesh.face_adjacency:
             tris[nbr[0]]['neighbors'].append(nbr[1])
             tris[nbr[1]]['neighbors'].append(nbr[0])
+
+        # update mesh face_attributes
+        mesh.face_attributes.update(ld2dl(tris))
         
-        print('tris = {0}'.format(pformat(tris)))
+        # tris is list of attribute dictionaries
+        # print('tris = {0}'.format(pformat(tris)))
+        # want dictionary of attributes with list data
+        # print('mesh.face_attributes = {0}'.format(pformat(mesh.face_attributes)))
         return tris
 
     def Cube(self, cnt, mesh, tris, valid_neighbors_all):
@@ -430,21 +505,14 @@ class meshTrimesh(object):
         mesh_tris = np.array(mesh.faces)
     
         glBegin(GL_TRIANGLES)
-        # glColor3fv(vertcolors[j] * vertstate[j])
-        # glVertex3fv(vertices[vertex_i])
-        # glColor3fv([1, 1, 1])
-        for i, tri in enumerate(tris):
-            
-            # if i > 0:
-            #     tris[i]['state'] += 0.05 * tris[i-1]['state']
-            # if i < (len(tris) - 1):
-            #     tris[i]['state'] -= 0.13 * tris[i+1]['state'] + np.random.uniform(-1e-2, 1e-2)
-
-            # glColor3fv([np.random.uniform(), 1, 1])
-            # glColor3fv(tris[i]['color'] * tris[i]['state'])
-            glColor3fv(tris[i]['color'] * tris[i]['state_o'])
-        
-            for vert in tri['vertices']:
+        for i, face in enumerate(mesh.faces):
+            v_color = mesh.face_attributes['color'][i]
+            # hack
+            mesh.face_attributes['state_o'][i] = tris[i]['state_o']
+            v_state_o = mesh.face_attributes['state_o'][i]
+            glColor3fv(v_color * v_state_o)
+            # draw face vertices, taken directly from mesh.vertices
+            for vert in mesh.vertices[face]:
                 # print(vert)
                 glVertex3fv(vert)
         glEnd()
@@ -475,7 +543,7 @@ class meshMeshpy(object):
 
         # compute the neighbors for each cell
         self.valid_neighbors_all = self.mesh_get_neighbors_meshpy(self.mesh)
-        print('valid_neighbors_all = {0}'.format(self.valid_neighbors_all))
+        # print('valid_neighbors_all = {0}'.format(self.valid_neighbors_all))
         
         # extend the mesh with an attribute dictionary
         self.tris = self.mesh_extended_meshpy(self.mesh)
@@ -496,7 +564,7 @@ class meshMeshpy(object):
         elif params['obj'] == 'rect':
             points, facets = make_vertex_facets_rect(params)
     
-        print('points = {0}\nfacets = {1}'.format(pformat(points), pformat(facets)))
+        # print('points = {0}\nfacets = {1}'.format(pformat(points), pformat(facets)))
         # print('mesh_info.unit = {0}'.format(mesh_info.unit))
         
         # copy points data into mesh
@@ -540,13 +608,13 @@ class meshMeshpy(object):
         tris = []
         # tris_d = []
         for i, tri_ in enumerate(mesh_tris):
-            print('tri_ = {0}'.format(tri_))
+            # print('tri_ = {0}'.format(tri_))
     
             tri_l = []
             for tri_vert in tri_:
                 vert = mesh_points[tri_vert].tolist()
                 vert += [0]
-                print('tri_vert = {0}'.format(vert))
+                # print('tri_vert = {0}'.format(vert))
                 # print()
                 tri_l.append(vert)
             # tris.append(tri_l)
@@ -559,7 +627,7 @@ class meshMeshpy(object):
                 'state_o': 0., # np.random.uniform(0, 1)
             })
 
-        print('tris = {0}'.format(tris))
+        # print('tris = {0}'.format(tris))
         return tris
 
     def Cube(self, cnt, mesh, tris, valid_neighbors_all):
@@ -621,18 +689,34 @@ def get_params(obj='line', c=1, dim=3):
     return params
 
 def main(args):
+    """meshgrid.main
+
+    create a mesh of computation nodes
+
+    - create mesh (generate, load)
+    - populate with attributes
+    - populate with threaded nodes
+    - render mesh based on fixed set of attributes
+    """
     
     # get mesh generation parameters
-
     if args.meshlib == 'trimesh':
-        params = get_params(obj=args.mode, c=1, dim=3)
-        print('params = {0}'.format(pformat(params)))
-        mesh = meshTrimesh(**params)
+        dim = 3
+        meshClass = meshTrimesh
     elif args.meshlib == 'meshpy':
-        params = get_params(obj=args.mode, c=1, dim=2)
-        print('params = {0}'.format(pformat(params)))
-        mesh = meshMeshpy(**params)
-    
+        dim = 2
+        meshClass = meshMeshpy
+        
+    params = get_params(obj=args.mode, c=1, dim=dim)
+    # print('params = {0}'.format(pformat(params)))
+    mesh = meshClass(**params)
+
+    # populate nodes
+    mesh.mesh.face_attributes['smnode'] = []
+    for i, face in enumerate(mesh.mesh.faces):
+        mesh.mesh.face_attributes['smnode'].append(smnode(smid=i))
+        mesh.mesh.face_attributes['smnode'][-1].start()
+
     # create state update thread
     ru = runUpdate(mesh.mesh, mesh.tris, args.density)
     # start state update thread
@@ -673,6 +757,7 @@ def main(args):
                 running = False
                 ru.isrunning = False
                 ru.join()
+                # todo: join mesh and smnode threads
                 pygame.quit()
                 quit()
 
