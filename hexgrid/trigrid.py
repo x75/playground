@@ -1,10 +1,15 @@
 """triangular grid
 
 see trimesh, networkx
- - load mesh
- - get triangle graph with neighbors
- - create the mesh as a graph
- - compute cells, render cell state onto mesh
+- load mesh
+- get triangle graph with neighbors
+- create the mesh as a graph
+- compute cells, render cell state onto mesh
+
+- communication
+-- sensorimotor
+-- OSC
+-- zmq
 
 """
 
@@ -294,7 +299,17 @@ class smnode(threading.Thread):
         # self.tris = tris
         self.cnt = 0
         self.smid = 0
-        self.density = np.random.uniform(0, 0.05)
+        
+        if 'density' in kwargs:
+            self.density = kwargs['density']
+        else:
+            self.density = np.random.uniform(0, 0.05)
+            
+        if 'color' in kwargs:
+            self.color = kwargs['color']
+        else:
+            self.color = np.random.uniform(0, 1, (3, ))
+            
         self.freq = 1/self.density
         self.neighbors = []
         self.inputs = {}
@@ -319,7 +334,7 @@ class smnode(threading.Thread):
             time.sleep(1/20.)
 
     def update(self):
-        print('smnode-{0}.update {1}'.format(self.smid, self.inputs))
+        # print('smnode-{0}.update {1}'.format(self.smid, self.inputs))
 
         x_ = self.state
         # print(tri_i, x_)
@@ -513,7 +528,8 @@ class meshTrimesh(threading.Thread):
     
         glBegin(GL_TRIANGLES)
         for i, face in enumerate(mesh.faces):
-            v_color = mesh.face_attributes['color'][i]
+            # v_color = mesh.face_attributes['color'][i]
+            v_color = mesh.face_attributes['smnode'][i].color
             # hack
             # mesh.face_attributes['state_o'][i] = tris[i]['state_o']
             # v_state_o = mesh.face_attributes['state_o'][i]
@@ -722,7 +738,12 @@ def main(args):
     # populate nodes
     mesh.mesh.face_attributes['smnode'] = []
     for i, face in enumerate(mesh.mesh.faces):
-        mesh.mesh.face_attributes['smnode'].append(smnode(smid=i))
+        mesh.mesh.face_attributes['smnode'].append(
+            smnode(smid=i,
+                   density=args.density,
+                   color=mesh.mesh.face_attributes['color'][i]
+            )
+        )
         mesh.mesh.face_attributes['smnode'][-1].start()
 
     # # create state update thread
@@ -766,8 +787,8 @@ def main(args):
             # if event.type == pygame.QUIT:
                 print('Got QUIT event')
                 running = False
-                ru.isrunning = False
-                ru.join()
+                # ru.isrunning = False
+                # ru.join()
                 # terminate mesh update thread
                 mesh.isrunning = False
                 mesh.join()
@@ -787,8 +808,8 @@ def main(args):
         # bookkeeping
         cnt += 1
         pygame.display.flip()
-        pygame.time.wait(20)
-        # pygame.time.wait(50)
+        # pygame.time.wait(20)
+        pygame.time.wait(40)
 
 if __name__ == '__main__':
     # command line arguments
