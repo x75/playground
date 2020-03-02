@@ -103,7 +103,7 @@ class trigridDisplay(object):
         self.isinit = True
         
     def setPerspective(self):
-        gluPerspective(60, (self.display[0]/self.display[1]), 0.1, 50.0)
+        gluPerspective(45, (self.display[0]/self.display[1]), 0.1, 50.0)
 
     def setTranslate(self, trans):
         glTranslatef(trans[0], trans[1], trans[2])
@@ -139,7 +139,7 @@ class trigridDisplay(object):
             meshfile = 'trigrid-mesh.json'
             self.mesh = trimesh.load_mesh(meshfile)
             self.mesh.face_attributes['color'] = [np.random.uniform(0, 1, (3, )) for _ in range(len(self.mesh.faces))]
-            print('mesh loaded', meshfile)
+            print('mesh loaded from {0}, vertices = {1}, faces = {2}'.format(meshfile, self.mesh.vertices.shape[0], self.mesh.faces.shape[0]))
         except Exception as e:
             print('loadmesh failed', e)
         
@@ -223,7 +223,6 @@ class trigridDisplay(object):
         glBegin(GL_TRIANGLES)
         
         for i, face in enumerate(self.mesh.faces):
-
 
             try:
                 facecol = self.mesh.face_attributes['color'][i]

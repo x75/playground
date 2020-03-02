@@ -16,7 +16,7 @@ see trimesh, networkx
 from __future__ import division
 from __future__ import absolute_import
 
-import pickle, sys, time, threading, argparse
+import pickle, sys, time, threading, argparse, queue
 
 import pygame
 from pygame.locals import *
@@ -40,6 +40,8 @@ from meshpy.triangle import MeshInfo, build
 import trimesh
 
 from oscpy.client import OSCClient
+from oscsrv import OSCsrv
+import liblo
 
 # meshpy examples toolkit
 import jw_meshtools as mt
@@ -307,12 +309,16 @@ class smnode(threading.Thread):
         else:
             self.density = np.random.uniform(0, 0.05)
             
+        if 'freq' in kwargs:
+            self.freq = kwargs['freq']
+        else:
+            self.freq = 1/self.density
+            
         if 'color' in kwargs:
             self.color = kwargs['color']
         else:
             self.color = np.random.uniform(0, 1, (3, ))
             
-        self.freq = 1/self.density
         self.neighbors = []
         self.inputs = {}
         self.state = np.zeros((1,1))
@@ -343,8 +349,8 @@ class smnode(threading.Thread):
         y_ = np.zeros_like(x_)
         # periodic activation
         
-        # y_ += 0.05 * np.sin((cnt/20.0) * tris[tri_i]['freq'] * 2 * np.pi)
-        # y_ += 0.3 * np.sin(cnt/1000.0)**2
+        # y_ += 0.05 * np.sin((self.cnt/20.0) * tris[tri_i]['freq'] * 2 * np.pi)
+        x_ += 0.02 * np.sin((self.cnt/20) * 2 * np.pi * self.freq)
         
         # if tri_i == 0 and cnt % 100 == 0:
         # if tri_i == 0 and np.random.uniform() < event_density:
@@ -401,6 +407,8 @@ class meshTrimesh(threading.Thread):
         self.tris = self.mesh_extended_trimesh(self.mesh)
 
         self.osc = kwargs['osc']
+        # self.osc_target = liblo.Address('localhost', 1234)
+        self.osc_target = '1234'
         
         self.coupling = 0.2
         self.isrunning = True
@@ -549,9 +557,10 @@ class meshTrimesh(threading.Thread):
                 verts += vert.tolist()
 
             l_ = [i] + (v_color * v_state_o)[0,:].tolist()
-            print('sending vert {0}'.format(l_))
+            # print('sending face color {0}'.format(l_))
             # self.osc.send_message(b'/vert', list(verts))
-            self.osc.send_message(b'/facecolor', l_)
+            # self.osc.send_message(b'/facecolor', l_)
+            self.osc.server.send(self.osc_target, '/facecolor', *l_)
             # self.face_attributes['color'] = v_color * v_state_o
                 
         # glEnd()
@@ -609,7 +618,13 @@ def main(args):
         dim = 2
         meshClass = meshMeshpy
 
-    osc = OSCClient('localhost', 1234)
+    # osc = OSCClient('localhost', 1234)
+    qu = queue.Queue(maxsize=10)
+    osc = OSCsrv(port=1235, queue=qu)
+    # osc_target = liblo.Address(1337)
+    osc_target = '1234'
+    # liblo.send(target, "/reconnect", 'bang')
+
         
     params = get_params(obj=args.mode, c=1, dim=dim)
     # print('params = {0}'.format(pformat(params)))
@@ -622,7 +637,8 @@ def main(args):
         mesh.mesh.face_attributes['smnode'].append(
             smnode(smid=i,
                    density=args.density,
-                   color=mesh.mesh.face_attributes['color'][i]
+                   color=mesh.mesh.face_attributes['color'][i],
+                   freq=mesh.mesh.face_attributes['freq'][i],
             )
         )
         mesh.mesh.face_attributes['smnode'][-1].start()
@@ -638,7 +654,8 @@ def main(args):
     meshfile = 'trigrid-mesh.json'
     mesh.mesh.export(meshfile)
     print('sending loadmesh')
-    osc.send_message(b'/load', [True])
+    # osc.send_message(b'/load', [True])
+    osc.server.send(osc_target, '/load', 0)
     
     # initialize pygame and OpenGL
     pygame.init()
@@ -678,12 +695,14 @@ def main(args):
     elif args.mode == 'rect':
         trans = [0, 0, -10]
 
-    osc.send_message(b'/translate', trans)
+    # osc.send_message(b'/translate', trans)
+    osc.server.send(osc_target, '/translate', *trans)
         
     # glScalef(2.0, 2.0, 2.0)
     # glScalef(3.0, 3.0, 3.0)
 
-    osc.send_message(b'/scale', [3.0, 3.0, 3.0])
+    # osc.send_message(b'/scale', [3.0, 3.0, 3.0])
+    osc.server.send(osc_target, '/scale', *([3.0, 3.0, 3.0]))
     
     # start main loop
     running = True

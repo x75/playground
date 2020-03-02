@@ -34,12 +34,12 @@ class OSCsrv(object):
         self.queue.put((path, args))
         
     def cb_translate(self, path, args):
-        # print('received args {0}'.format(args))
+        print('cb_translate received args {0}'.format(args))
         self.translate = args
         self.queue.put((path, args))
         
     def cb_scale(self, path, args):
-        # print('received args {0}'.format(args))
+        print('cb_scale received args {0}'.format(args))
         self.scale = args
         self.queue.put((path, args))
         
@@ -49,12 +49,12 @@ class OSCsrv(object):
         self.queue.put((path, args))
         
     def cb_facecolor(self, path, args):
-        # print('received facecolor args {0}'.format(args))
+        # print('cb_facecolor received facecolor args {0}'.format(args))
         self.facecolor = args
         self.queue.put((path, args))
         
     def cb_load(self, path, args):
-        print('received args {0}'.format(args))
+        print('cb_load received args {0}'.format(args))
         self.load = args
         self.queue.put((path, args))
         
