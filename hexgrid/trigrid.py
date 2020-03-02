@@ -297,81 +297,78 @@ class smnode(threading.Thread):
         self.density = np.random.uniform(0, 0.05)
         self.freq = 1/self.density
         self.neighbors = []
+        self.inputs = {}
+        self.state = np.zeros((1,1))
+        self.outputs = {
+            'state_o': np.zeros_like(self.state)
+        }
         for k in ['smid', 'density', 'freq', 'neighbors']:
             if k in kwargs:
                 setattr(self, k, kwargs[k])
         
     def run(self):
         while self.isrunning:
-            print('smnode {0}'.format(self.smid))
+            # print('smnode {0}'.format(self.smid))
             # todo:
             # - read inputs
             # - compute output
             
             # self.mesh_update_state(self.cnt, self.mesh, self.tris, self.density)
+            self.update()
             self.cnt += 1
             time.sleep(1/20.)
 
-    def mesh_update_state(self, cnt, mesh, tris, density):
-        event_density = density # 0.0001
-        # event_density = 0.001
-        # event_density = 0.01
-        # event_density = 0.1
-        # for tri_i, neighbors in enumerate(mesh.neighbors):
-        # print(cnt)
-        for tri_i, tri in enumerate(tris):
+    def update(self):
+        print('smnode-{0}.update {1}'.format(self.smid, self.inputs))
 
-            x_ = tris[tri_i]['state']
-            # print(tri_i, x_)
-            y_ = np.zeros_like(x_)
-            # periodic activation
-
-            # y_ += 0.05 * np.sin((cnt/20.0) * tris[tri_i]['freq'] * 2 * np.pi)
-            # y_ += 0.3 * np.sin(cnt/1000.0)**2
-            
-            # if tri_i == 0 and cnt % 100 == 0:
-            # if tri_i == 0 and np.random.uniform() < event_density:
-            if np.random.uniform() < event_density:
-                # print('refreshing state')
-                # tris[tri_i]['state'] = 1.0
-                y_ += 2.0 + np.random.uniform(0, 2)
-                # tris[tri_i]['state'] = x_
+        x_ = self.state
+        # print(tri_i, x_)
+        y_ = np.zeros_like(x_)
+        # periodic activation
+        
+        # y_ += 0.05 * np.sin((cnt/20.0) * tris[tri_i]['freq'] * 2 * np.pi)
+        # y_ += 0.3 * np.sin(cnt/1000.0)**2
+        
+        # if tri_i == 0 and cnt % 100 == 0:
+        # if tri_i == 0 and np.random.uniform() < event_density:
+        if np.random.uniform() < self.density:
+            # print('refreshing state')
+            # tris[tri_i]['state'] = 1.0
+            y_ += 2.0 + np.random.uniform(0, 2)
+            # tris[tri_i]['state'] = x_
 
         
-            # print(tri_i, neighbors)
+        # print(tri_i, neighbors)
         
-            # print(valid_neighbors)
-            # for v_n in valid_neighbors:
-            for v_n in tri['neighbors']:
-                if v_n < 0:
-                    continue
+        # print(valid_neighbors)
+        for input_n in self.inputs:
             
-                if tris[v_n]['state'] > 0.0:
-                    # x_ = 0.0 * tris[tri_i]['state'] + (0.9 * tris[v_n]['state'])
-                    # x_ = 0.5 * tris[tri_i]['state'] + (0.5 * tris[v_n]['state'])
-                    # coupling = 0.05
-                    coupling = 0.2
-                    transfer = coupling * tris[v_n]['state']
-                    y_ += transfer
-                    tris[v_n]['state'] -= transfer # coupling * tris[v_n]['state']
-
+            if self.inputs[input_n] > 0.0:
+                # x_ = 0.0 * tris[tri_i]['state'] + (0.9 * tris[v_n]['state'])
+                # x_ = 0.5 * tris[tri_i]['state'] + (0.5 * tris[v_n]['state'])
+                # coupling = 0.05
+                coupling = 0.2
+                transfer = coupling * self.inputs[input_n]
+                y_ += transfer
+                # tris[v_n]['state'] -= transfer # coupling * tris[v_n]['state']
+                
         
-            # tris[tri_i]['state'] *= 0.5
-            # x_ = np.tanh(x_)
-            # x_ = np.sqrt(x_)
+        # tris[tri_i]['state'] *= 0.5
+        # x_ = np.tanh(x_)
+        # x_ = np.sqrt(x_)
         
-            # x_ = 0.92 * x_
+        # x_ = 0.92 * x_
         
-            # decay activation
-            # tris[tri_i]['state'] *= 0.98
-            tris[tri_i]['state'] *= 0.8
+        # decay activation
+        # tris[tri_i]['state'] *= 0.98
+        self.state *= 0.8
+        
+        # add inputs
+        self.state += y_
             
-            # add inputs
-            tris[tri_i]['state'] += y_
-            
-            # output transfer function
-            # tris[tri_i]['state_o'] = np.log(tris[tri_i]['state'] + 1) * 2
-            tris[tri_i]['state_o'] = np.tanh(tris[tri_i]['state'] * 5)
+        # output transfer function
+        # tris[tri_i]['state_o'] = np.log(tris[tri_i]['state'] + 1) * 2
+        self.outputs['state_o'] = np.tanh(self.state * 5)
             
 class meshTrimesh(threading.Thread):
     def __init__(self, *args, **kwargs):
@@ -386,20 +383,27 @@ class meshTrimesh(threading.Thread):
         # extend the mesh with an attribute dictionary
         self.tris = self.mesh_extended_trimesh(self.mesh)
 
+        self.coupling = 0.2
         self.isrunning = True
         self.cnt = 0
         
     def run(self):
         while self.isrunning:
             self.update()
+            self.cnt += 1
             time.sleep(1/20.)
 
     def update(self):
-        self.cnt += 1
-
         # todo
         # - loop over neighbors
-        # - populate node inputs with external values
+        for nbrs in self.mesh.face_adjacency:
+            # - populate node inputs with external values
+            # self.mesh.face_attributes['smnode'][nbrs[0]].inputs['n{0}'.format(nbrs[1])] = self.mesh.face_attributes['state_o'][nbrs[1]]
+            # self.mesh.face_attributes['smnode'][nbrs[1]].inputs['n{0}'.format(nbrs[0])] = self.mesh.face_attributes['state_o'][nbrs[0]]
+            self.mesh.face_attributes['smnode'][nbrs[0]].inputs['n{0}'.format(nbrs[1])] = self.coupling * self.mesh.face_attributes['smnode'][nbrs[1]].state
+            self.mesh.face_attributes['smnode'][nbrs[1]].state -= self.coupling * self.mesh.face_attributes['smnode'][nbrs[1]].state
+            self.mesh.face_attributes['smnode'][nbrs[1]].inputs['n{0}'.format(nbrs[0])] = self.mesh.face_attributes['smnode'][nbrs[0]].state
+            self.mesh.face_attributes['smnode'][nbrs[0]].state -= self.coupling * self.mesh.face_attributes['smnode'][nbrs[0]].state
         
     def make_mesh_triangle_trimesh(self, **params):
         """make_mesh_triangle_trimesh
@@ -484,11 +488,14 @@ class meshTrimesh(threading.Thread):
                 'freq': np.random.uniform(0.05, 0.2),
                 'state': 0., # np.random.uniform(0, 1)
                 'state_o': 0., # np.random.uniform(0, 1)
+                # 'inputs': {}, # np.random.uniform(0, 1)
             })
             
         for nbr in mesh.face_adjacency:
             tris[nbr[0]]['neighbors'].append(nbr[1])
+            # tris[nbr[0]]['inputs']['n{0}'.format(nbr[1])] = 0.
             tris[nbr[1]]['neighbors'].append(nbr[0])
+            # tris[nbr[1]]['inputs']['n{0}'.format(nbr[0])] = 0.
 
         # update mesh face_attributes
         mesh.face_attributes.update(ld2dl(tris))
@@ -508,8 +515,9 @@ class meshTrimesh(threading.Thread):
         for i, face in enumerate(mesh.faces):
             v_color = mesh.face_attributes['color'][i]
             # hack
-            mesh.face_attributes['state_o'][i] = tris[i]['state_o']
-            v_state_o = mesh.face_attributes['state_o'][i]
+            # mesh.face_attributes['state_o'][i] = tris[i]['state_o']
+            # v_state_o = mesh.face_attributes['state_o'][i]
+            v_state_o = mesh.face_attributes['smnode'][i].outputs['state_o']
             glColor3fv(v_color * v_state_o)
             # draw face vertices, taken directly from mesh.vertices
             for vert in mesh.vertices[face]:
@@ -717,11 +725,14 @@ def main(args):
         mesh.mesh.face_attributes['smnode'].append(smnode(smid=i))
         mesh.mesh.face_attributes['smnode'][-1].start()
 
-    # create state update thread
-    ru = runUpdate(mesh.mesh, mesh.tris, args.density)
-    # start state update thread
-    ru.start()
+    # # create state update thread
+    # ru = runUpdate(mesh.mesh, mesh.tris, args.density)
+    # # start state update thread
+    # ru.start()
 
+    # start mesh update thread
+    mesh.start()
+    
     # initialize pygame and OpenGL
     pygame.init()
     # display = (800,600)
@@ -757,7 +768,13 @@ def main(args):
                 running = False
                 ru.isrunning = False
                 ru.join()
-                # todo: join mesh and smnode threads
+                # terminate mesh update thread
+                mesh.isrunning = False
+                mesh.join()
+                # join smnode threads from mesh
+                for i, face in enumerate(mesh.mesh.faces):
+                    mesh.mesh.face_attributes['smnode'][i].isrunning = False
+                    mesh.mesh.face_attributes['smnode'][i].join()
                 pygame.quit()
                 quit()
 
