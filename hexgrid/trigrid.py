@@ -548,8 +548,11 @@ class meshTrimesh(threading.Thread):
                 # glVertex3fv(vert)
                 verts += vert.tolist()
 
-            print('sending vert {0}'.format(list(verts)))
-            self.osc.send_message(b'/vert', list(verts))
+            l_ = [i] + (v_color * v_state_o)[0,:].tolist()
+            print('sending vert {0}'.format(l_))
+            # self.osc.send_message(b'/vert', list(verts))
+            self.osc.send_message(b'/facecolor', l_)
+            # self.face_attributes['color'] = v_color * v_state_o
                 
         # glEnd()
 
@@ -632,6 +635,11 @@ def main(args):
     # start mesh update thread
     mesh.start()
 
+    meshfile = 'trigrid-mesh.json'
+    mesh.mesh.export(meshfile)
+    print('sending loadmesh')
+    osc.send_message(b'/load', [True])
+    
     # initialize pygame and OpenGL
     pygame.init()
 

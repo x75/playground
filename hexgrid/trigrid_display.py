@@ -7,6 +7,8 @@ import numpy as np
 from OpenGL.GL import *
 from OpenGL.GLU import *
 
+import trimesh
+
 from oscpy.server import OSCThreadServer
 
 # message queue
@@ -97,6 +99,7 @@ class trigridDisplay(object):
         self.qu = queue.Queue(maxsize=10)
         self.ctrl = OSCsrv(queue=self.qu)
         # self.ctrl.start()
+        self.mesh = None
         self.isinit = True
         
     def setPerspective(self):
@@ -131,8 +134,22 @@ class trigridDisplay(object):
         glEnd()
         # pass
         
+    def loadmesh(self, meshfile):
+        try:
+            meshfile = 'trigrid-mesh.json'
+            self.mesh = trimesh.load_mesh(meshfile)
+            self.mesh.face_attributes['color'] = [np.random.uniform(0, 1, (3, )) for _ in range(len(self.mesh.faces))]
+            print('mesh loaded', meshfile)
+        except Exception as e:
+            print('loadmesh failed', e)
+        
+    def facecolor(self, facecolor):
+        if self.mesh is None:
+            return
+        self.mesh.face_attributes['color'][int(facecolor[0])] = facecolor[1:]
+        
     def run(self):
-        print('enter trigridDisplay.run')
+        # print('enter trigridDisplay.run')
         self.isrunning = True
         cnt = 0
         # while self.isrunning:
@@ -149,6 +166,10 @@ class trigridDisplay(object):
                         self.setScale(qud[1])
                     elif qud[0] == '/vert':
                         self.renderVert(qud[1])
+                    elif qud[0] == '/load':
+                        self.loadmesh(qud[1])
+                    elif qud[0] == '/facecolor':
+                        self.facecolor(qud[1])
             
             # event handling
             for event in pygame.event.get():
@@ -173,6 +194,8 @@ class trigridDisplay(object):
                     pygame.quit()
                     quit()
 
+
+            self.rendermesh()
             # # glRotatef(1, 3, 3, 3)
             
             # glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
@@ -193,6 +216,42 @@ class trigridDisplay(object):
             # pygame.time.wait(20)
             pygame.time.wait(40)
 
+    def rendermesh(self):
+        if self.mesh is None:
+            return
+        
+        glBegin(GL_TRIANGLES)
+        
+        for i, face in enumerate(self.mesh.faces):
+
+
+            try:
+                facecol = self.mesh.face_attributes['color'][i]
+            except:
+                facecol = [.8, .8, .8]
+            glColor3fv(facecol)
+
+            # print('face colors', i, facecol)
+        
+            for vert in self.mesh.vertices[face]:
+                # print(vert)
+                glVertex3fv(vert)
+        glEnd()
+
+        # draw lines
+        glBegin(GL_LINES)
+        for edge in self.mesh.edges:
+            glColor3f(1, 1, 1)
+            # print(edge)
+            # glScalef(10.0, 10.0, 10.0)
+            # glBegin(GL_TRIANGLES)
+            # for edge in edges:
+            for vertex in edge:
+                # print(vertex, mesh_points[vertex])
+                glVertex3fv(self.mesh.vertices[vertex].tolist())
+        glEnd()
+        
+            
 def main(args):
 
     d = trigridDisplay()

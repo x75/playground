@@ -21,6 +21,8 @@ class OSCsrv(object):
         self.server.add_method("/translate", 'fff', self.cb_translate)
         self.server.add_method("/scale", 'fff', self.cb_scale)
         self.server.add_method("/vert", 'fffffffffffff', self.cb_vert)
+        self.server.add_method("/load", 'i', self.cb_load)
+        self.server.add_method("/facecolor", 'ifff', self.cb_facecolor)
         self.callbacks = []
 
         self.st = threading.Thread( target = self.run )
@@ -44,6 +46,16 @@ class OSCsrv(object):
     def cb_vert(self, path, args):
         # print('received args {0}'.format(args))
         self.vert = args
+        self.queue.put((path, args))
+        
+    def cb_facecolor(self, path, args):
+        # print('received facecolor args {0}'.format(args))
+        self.facecolor = args
+        self.queue.put((path, args))
+        
+    def cb_load(self, path, args):
+        print('received args {0}'.format(args))
+        self.load = args
         self.queue.put((path, args))
         
     # def add_callback(self, address, types, func):
