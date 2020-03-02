@@ -18,16 +18,16 @@ from __future__ import absolute_import
 
 import pickle, sys, time, threading, argparse
 
-import numpy as np
-import numpy.linalg as la
-from six.moves import range
-from pprint import pformat
-
 import pygame
 from pygame.locals import *
 
 from OpenGL.GL import *
 from OpenGL.GLU import *
+
+import numpy as np
+import numpy.linalg as la
+from six.moves import range
+from pprint import pformat
 
 from scipy.spatial.transform import Rotation as R
 import joblib
@@ -38,6 +38,8 @@ import meshpy.triangle as triangle
 from meshpy.triangle import MeshInfo, build
 # use trimesh
 import trimesh
+
+from oscpy.client import OSCClient
 
 # meshpy examples toolkit
 import jw_meshtools as mt
@@ -398,6 +400,8 @@ class meshTrimesh(threading.Thread):
         # extend the mesh with an attribute dictionary
         self.tris = self.mesh_extended_trimesh(self.mesh)
 
+        self.osc = kwargs['osc']
+        
         self.coupling = 0.2
         self.isrunning = True
         self.cnt = 0
@@ -526,7 +530,8 @@ class meshTrimesh(threading.Thread):
         mesh_points = np.array(mesh.vertices)
         mesh_tris = np.array(mesh.faces)
     
-        glBegin(GL_TRIANGLES)
+        # glBegin(GL_TRIANGLES)
+        
         for i, face in enumerate(mesh.faces):
             # v_color = mesh.face_attributes['color'][i]
             v_color = mesh.face_attributes['smnode'][i].color
@@ -534,162 +539,32 @@ class meshTrimesh(threading.Thread):
             # mesh.face_attributes['state_o'][i] = tris[i]['state_o']
             # v_state_o = mesh.face_attributes['state_o'][i]
             v_state_o = mesh.face_attributes['smnode'][i].outputs['state_o']
-            glColor3fv(v_color * v_state_o)
+            # glColor3fv(v_color * v_state_o)
             # draw face vertices, taken directly from mesh.vertices
+            verts = list(v_color)
+            verts += v_state_o[0,:].tolist()
             for vert in mesh.vertices[face]:
                 # print(vert)
-                glVertex3fv(vert)
-        glEnd()
+                # glVertex3fv(vert)
+                verts += vert.tolist()
 
-        # draw lines
-        glBegin(GL_LINES)
-        for edge in mesh.edges:
-            glColor3f(1, 1, 1)
-            # print(edge)
-            # glScalef(10.0, 10.0, 10.0)
-            # glBegin(GL_TRIANGLES)
-            # for edge in edges:
-            for vertex in edge:
-                # print(vertex, mesh_points[vertex])
-                glVertex3fv(mesh_points[vertex].tolist())
-        glEnd()
-        
-        # glBegin(GL_POINTS)
-        # glColor3fv([1, 0, 0])
-        # glVertex3fv([0, 0, 0])
+            print('sending vert {0}'.format(list(verts)))
+            self.osc.send_message(b'/vert', list(verts))
+                
         # glEnd()
 
-class meshMeshpy(object):
-    def __init__(self, *args, **kwargs):
-        super(meshMeshpy, self).__init__()
-        # create a mesh with mesh generation parameters
-        self.mesh = self.make_mesh_triangle_meshpy(**kwargs)
-
-        # compute the neighbors for each cell
-        self.valid_neighbors_all = self.mesh_get_neighbors_meshpy(self.mesh)
-        # print('valid_neighbors_all = {0}'.format(self.valid_neighbors_all))
-        
-        # extend the mesh with an attribute dictionary
-        self.tris = self.mesh_extended_meshpy(self.mesh)
-        
-    def make_mesh_triangle_meshpy(self, **params):
-        """make_mesh_meshpy_triangle
-        
-        create mesh using meshpy.triangle.MeshInfo
-        """
-        c = params['c']
-        mesh_info = MeshInfo()
-        
-        # generate vertices and facets
-        if params['obj'] == 'line':
-            points, facets, faces = make_vertex_facets_line(params)
-        elif params['obj'] == 'hexagon':
-            points, facets, faces = make_vertex_facets_hexagon(params)
-        elif params['obj'] == 'rect':
-            points, facets = make_vertex_facets_rect(params)
-    
-        # print('points = {0}\nfacets = {1}'.format(pformat(points), pformat(facets)))
-        # print('mesh_info.unit = {0}'.format(mesh_info.unit))
-        
-        # copy points data into mesh
-        mesh_info.set_points(points)
-
-        # copy facets data into mesh
-        mesh_info.set_facets(facets)
-    
-        # build the mesh
-        mesh = build(mesh_info)
-
-        # writing objects
-        # mesh.write_vtk("trigrid.vtk")
-        # f = open('trigrid.pkl', 'wb')
-        # pickle.dump(mesh, f)
-        # f.close()
-        # joblib.dump(mesh, 'trigrid.pkl')
-        # sys.exit()
-        return mesh
-
-    def mesh_get_neighbors_meshpy(self, mesh):
-        nbrs = mesh.neighbors
-        valid_neighbors_all = []
-        for nbr in nbrs:
-            valid_neighbors_all.append([_ for _ in nbr if _ > -1])
-        return(valid_neighbors_all)
-
-    def mesh_extended_meshpy(self, mesh):
-        mesh_points = np.array(mesh.points)
-        mesh_tris = np.array(mesh.elements)
-        mesh_neighbors = np.array(mesh.neighbors)
-
-        # print('mesh_tris = {0}'.format(list(mesh_tris)))
-        # print('neighbors = {0}'.format(list(mesh.neighbors)))
-        
-        # plt.triplot(mesh_points[:, 0], mesh_points[:, 1], mesh_tris)
-        # plt.aspect(1)
-        # plt.show()
-
-        # for
-        tris = []
-        # tris_d = []
-        for i, tri_ in enumerate(mesh_tris):
-            # print('tri_ = {0}'.format(tri_))
-    
-            tri_l = []
-            for tri_vert in tri_:
-                vert = mesh_points[tri_vert].tolist()
-                vert += [0]
-                # print('tri_vert = {0}'.format(vert))
-                # print()
-                tri_l.append(vert)
-            # tris.append(tri_l)
-            tris.append({
-                'vertices': tri_l,
-                'neighbors': list(mesh_neighbors[i]),
-                'color': np.random.uniform(0, 1, (3,)),
-                # 'color': [0.5, 0.2, 0.3],
-                'state': 0., # np.random.uniform(0, 1)
-                'state_o': 0., # np.random.uniform(0, 1)
-            })
-
-        # print('tris = {0}'.format(tris))
-        return tris
-
-    def Cube(self, cnt, mesh, tris, valid_neighbors_all):
-        mdir = 1.0
-        mesh_points = np.array(mesh.points)
-        mesh_tris = np.array(mesh.elements)
-    
-        glBegin(GL_TRIANGLES)
-        # glColor3fv(vertcolors[j] * vertstate[j])
-        # glVertex3fv(vertices[vertex_i])
-        # glColor3fv([1, 1, 1])
-        for i, tri in enumerate(tris):
-
-            # if i > 0:
-            #     tris[i]['state'] += 0.05 * tris[i-1]['state']
-            # if i < (len(tris) - 1):
-            #     tris[i]['state'] -= 0.13 * tris[i+1]['state'] + np.random.uniform(-1e-2, 1e-2)
-
-            # glColor3fv([np.random.uniform(), 1, 1])
-            glColor3fv(tris[i]['color'] * tris[i]['state'])
-        
-            for vert in tri['vertices']:
-                # print(vert)
-                glVertex3fv(vert)
-        glEnd()
-
-        # draw lines
-        glBegin(GL_LINES)
-        for edge in mesh.facets:
-            glColor3f(1, 1, 1)
-            # print(edge)
-            # glScalef(10.0, 10.0, 10.0)
-            # glBegin(GL_TRIANGLES)
-            # for edge in edges:
-            for vertex in edge:
-                # print(vertex, mesh_points[vertex])
-                glVertex3fv(mesh_points[vertex].tolist() + [0])
-        glEnd()
+        # # draw lines
+        # glBegin(GL_LINES)
+        # for edge in mesh.edges:
+        #     glColor3f(1, 1, 1)
+        #     # print(edge)
+        #     # glScalef(10.0, 10.0, 10.0)
+        #     # glBegin(GL_TRIANGLES)
+        #     # for edge in edges:
+        #     for vertex in edge:
+        #         # print(vertex, mesh_points[vertex])
+        #         glVertex3fv(mesh_points[vertex].tolist())
+        # glEnd()
         
         # glBegin(GL_POINTS)
         # glColor3fv([1, 0, 0])
@@ -730,9 +605,12 @@ def main(args):
     elif args.meshlib == 'meshpy':
         dim = 2
         meshClass = meshMeshpy
+
+    osc = OSCClient('localhost', 1234)
         
     params = get_params(obj=args.mode, c=1, dim=dim)
     # print('params = {0}'.format(pformat(params)))
+    params['osc'] = osc
     mesh = meshClass(**params)
 
     # populate nodes
@@ -753,29 +631,52 @@ def main(args):
 
     # start mesh update thread
     mesh.start()
-    
+
     # initialize pygame and OpenGL
     pygame.init()
-    # display = (800,600)
-    display = (1200, 900)
-    pygame.display.set_mode(display, DOUBLEBUF|OPENGL)
+
+
+    # import zmq
+
+    # context = zmq.Context()
+
+    # #  Socket to talk to server
+    # print("Connecting to hello world server…")
+    # socket = context.socket(zmq.REQ)
+    # socket.connect("tcp://localhost:5555")
+    
+    # #  Do 10 requests, waiting each time for a response
+    # for request in range(10):
+    #     print("Sending request %s …" % request)
+    #     socket.send(b"Hello")
+
+    #     #  Get the reply.
+    #     message = socket.recv()
+    #     print("Received reply %s [ %s ]" % (request, message))
 
     # gluPerspective(45, (display[0]/display[1]), 0.1, 50.0)
-    gluPerspective(60, (display[0]/display[1]), 0.1, 50.0)
+    # gluPerspective(60, (display[0]/display[1]), 0.1, 50.0)
+
+    # for i in range(10):
+    #     osc.send_message(b'/address', [i, 0.1])
     
     # hexagon
     if args.mode == 'hexagon':
-        glTranslatef(-0.0, 0.0, -5)
+        trans = [0.0, 0.0, -5.0]
     # line
     elif args.mode == 'line':
-        glTranslatef(-6.0, 0.0, -10)
+        trans = [-6.0, 0.0, -10]
     # rect
     elif args.mode == 'rect':
-        glTranslatef(0, 0, -10)
+        trans = [0, 0, -10]
 
+    osc.send_message(b'/translate', trans)
+        
     # glScalef(2.0, 2.0, 2.0)
-    glScalef(3.0, 3.0, 3.0)
+    # glScalef(3.0, 3.0, 3.0)
 
+    osc.send_message(b'/scale', [3.0, 3.0, 3.0])
+    
     # start main loop
     running = True
     cnt = 0
@@ -799,16 +700,17 @@ def main(args):
                 pygame.quit()
                 quit()
 
-        # glRotatef(1, 3, 3, 3)
-        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
+        # # glRotatef(1, 3, 3, 3)
+        # glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
 
-        # render function on mesh
+        # # render function on mesh
         mesh.Cube(cnt, mesh.mesh, mesh.tris, mesh.valid_neighbors_all)
         
         # bookkeeping
         cnt += 1
-        pygame.display.flip()
-        # pygame.time.wait(20)
+        
+        # pygame.display.flip()
+        # # pygame.time.wait(20)
         pygame.time.wait(40)
 
 if __name__ == '__main__':
