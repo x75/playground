@@ -9,15 +9,21 @@ from OpenGL.GLU import *
 
 import trimesh
 
+
+import zmq
 from oscpy.server import OSCThreadServer
+from oscsrv import OSCsrv
+
+# opengl text class
+# import text
 
 # message queue
-# 1. setPerspective
-# 2. glTranslate
-# 3. glScalef
-import zmq
-
-from oscsrv import OSCsrv
+# - setPerspective
+# - glTranslate
+# - glScalef
+# - vertexstream
+# - loadmesh
+# - updatemesh
 
 class ctrlZmq(threading.Thread):
     def __init__(self):
@@ -70,9 +76,18 @@ class trigridDisplay(object):
         # initialize pygame and OpenGL
         pygame.init()
         # display = (800,600)
-        self.display = (1200, 900)
-        pygame.display.set_mode(self.display, DOUBLEBUF|OPENGL)
+        self.displaysize = (1200, 900)
+        self.window = pygame.display.set_mode(self.displaysize, DOUBLEBUF|OPENGL)
+        self.clock  = pygame.time.Clock()
 
+        # # attributes: position, font_name, font_size, font_color, bg_color
+        # self.hello_world_text = text.Text('Hello World', position=(0.0, 0.0))
+        # self.tick_text = text.Text('ticks: 0', position=(0.0, -0.3), font_size=80, font_color=(0.5, 1.0, 1.0, 1.0))
+        # self.shader = text.get_default_shader()
+ 
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        
         # width = 1200
         # height = 900
         # glViewport(0, 0, width, height)
@@ -103,7 +118,7 @@ class trigridDisplay(object):
         self.isinit = True
         
     def setPerspective(self):
-        gluPerspective(45, (self.display[0]/self.display[1]), 0.1, 50.0)
+        gluPerspective(45, (self.displaysize[0]/self.displaysize[1]), 0.1, 50.0)
 
     def setTranslate(self, trans):
         glTranslatef(trans[0], trans[1], trans[2])
@@ -134,9 +149,11 @@ class trigridDisplay(object):
         glEnd()
         # pass
         
-    def loadmesh(self, meshfile):
+    def loadmesh(self, meshfile=None):
         try:
-            meshfile = 'trigrid-mesh.json'
+            if meshfile is None:
+                meshfile = 'trigrid-mesh.json'
+            meshfile = meshfile[0]
             self.mesh = trimesh.load_mesh(meshfile)
             self.mesh.face_attributes['color'] = [np.random.uniform(0, 1, (3, )) for _ in range(len(self.mesh.faces))]
             print('mesh loaded from {0}, vertices = {1}, faces = {2}'.format(meshfile, self.mesh.vertices.shape[0], self.mesh.faces.shape[0]))
@@ -148,6 +165,14 @@ class trigridDisplay(object):
             return
         self.mesh.face_attributes['color'][int(facecolor[0])] = facecolor[1:]
         
+    def drawText(self, position, textString):
+        fontsize = 48
+        font = pygame.font.Font (None, fontsize)
+        textSurface = font.render(textString, True, (255,255,255,255), (0,0,0,255))     
+        textData = pygame.image.tostring(textSurface, "RGBA", True)     
+        glRasterPos3d(*position)     
+        glDrawPixels(textSurface.get_width(), textSurface.get_height(), GL_RGBA, GL_UNSIGNED_BYTE, textData)
+
     def run(self):
         # print('enter trigridDisplay.run')
         self.isrunning = True
@@ -194,9 +219,18 @@ class trigridDisplay(object):
                     pygame.quit()
                     quit()
 
+            # glClearColor(0.0, 0.0, 0.0, 1.0)
+            # glClear(GL_COLOR_BUFFER_BIT)                    
+
+            # self.hello_world_text.draw(self.shader)
+ 
+            # self.tick_text.set_text('ticks %f' % pygame.time.get_ticks())
+            # self.tick_text.draw(self.shader)
 
             self.rendermesh()
             # # glRotatef(1, 3, 3, 3)
+
+            self.drawText([-2.4, -1.8, 0], 'trigrid mesh display {0:.1f} fps'.format(self.clock.get_fps()))
             
             # glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
 
@@ -215,6 +249,7 @@ class trigridDisplay(object):
             pygame.display.flip()
             # pygame.time.wait(20)
             pygame.time.wait(40)
+            self.clock.tick(60)
 
     def rendermesh(self):
         if self.mesh is None:
@@ -256,7 +291,8 @@ def main(args):
     d = trigridDisplay()
     while not d.isinit:
         time.sleep(0.1)
-        
+
+    # rendering must be run from main thread
     # d.start()
     isrunning = True
     while isrunning:

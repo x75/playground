@@ -302,30 +302,21 @@ class smnode(threading.Thread):
         # self.mesh = mesh
         # self.tris = tris
         self.cnt = 0
+
         self.smid = 0
-        
-        if 'density' in kwargs:
-            self.density = kwargs['density']
-        else:
-            self.density = np.random.uniform(0, 0.05)
-            
-        if 'freq' in kwargs:
-            self.freq = kwargs['freq']
-        else:
-            self.freq = 1/self.density
-            
-        if 'color' in kwargs:
-            self.color = kwargs['color']
-        else:
-            self.color = np.random.uniform(0, 1, (3, ))
-            
+        self.density = np.random.uniform(0, 0.05)
+        self.freq = 1/self.density
+        self.color = np.random.uniform(0, 1, (3, ))
         self.neighbors = []
+        
         self.inputs = {}
         self.state = np.zeros((1,1))
         self.outputs = {
             'state_o': np.zeros_like(self.state)
         }
-        for k in ['smid', 'density', 'freq', 'neighbors']:
+        
+        # set from available keyword arguments
+        for k in ['smid', 'density', 'freq', 'color', 'neighbors']:
             if k in kwargs:
                 setattr(self, k, kwargs[k])
         
@@ -533,13 +524,11 @@ class meshTrimesh(threading.Thread):
         # print('mesh.face_attributes = {0}'.format(pformat(mesh.face_attributes)))
         return tris
 
-    def Cube(self, cnt, mesh, tris, valid_neighbors_all):
+    def send_state(self, cnt, mesh, tris, valid_neighbors_all):
         mdir = 1.0
         mesh_points = np.array(mesh.vertices)
         mesh_tris = np.array(mesh.faces)
     
-        # glBegin(GL_TRIANGLES)
-        
         for i, face in enumerate(mesh.faces):
             # v_color = mesh.face_attributes['color'][i]
             v_color = mesh.face_attributes['smnode'][i].color
@@ -547,13 +536,10 @@ class meshTrimesh(threading.Thread):
             # mesh.face_attributes['state_o'][i] = tris[i]['state_o']
             # v_state_o = mesh.face_attributes['state_o'][i]
             v_state_o = mesh.face_attributes['smnode'][i].outputs['state_o']
-            # glColor3fv(v_color * v_state_o)
             # draw face vertices, taken directly from mesh.vertices
             verts = list(v_color)
             verts += v_state_o[0,:].tolist()
             for vert in mesh.vertices[face]:
-                # print(vert)
-                # glVertex3fv(vert)
                 verts += vert.tolist()
 
             l_ = [i] + (v_color * v_state_o)[0,:].tolist()
@@ -563,26 +549,6 @@ class meshTrimesh(threading.Thread):
             self.osc.server.send(self.osc_target, '/facecolor', *l_)
             # self.face_attributes['color'] = v_color * v_state_o
                 
-        # glEnd()
-
-        # # draw lines
-        # glBegin(GL_LINES)
-        # for edge in mesh.edges:
-        #     glColor3f(1, 1, 1)
-        #     # print(edge)
-        #     # glScalef(10.0, 10.0, 10.0)
-        #     # glBegin(GL_TRIANGLES)
-        #     # for edge in edges:
-        #     for vertex in edge:
-        #         # print(vertex, mesh_points[vertex])
-        #         glVertex3fv(mesh_points[vertex].tolist())
-        # glEnd()
-        
-        # glBegin(GL_POINTS)
-        # glColor3fv([1, 0, 0])
-        # glVertex3fv([0, 0, 0])
-        # glEnd()
-
 def get_params(obj='line', c=1, dim=3):
     hc1 = np.sin(np.deg2rad(60)) * c
     r_i = hc1/3
@@ -655,7 +621,7 @@ def main(args):
     mesh.mesh.export(meshfile)
     print('sending loadmesh')
     # osc.send_message(b'/load', [True])
-    osc.server.send(osc_target, '/load', 0)
+    osc.server.send(osc_target, '/load', meshfile)
     
     # initialize pygame and OpenGL
     pygame.init()
@@ -731,7 +697,7 @@ def main(args):
         # glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
 
         # # render function on mesh
-        mesh.Cube(cnt, mesh.mesh, mesh.tris, mesh.valid_neighbors_all)
+        mesh.send_state(cnt, mesh.mesh, mesh.tris, mesh.valid_neighbors_all)
         
         # bookkeeping
         cnt += 1
