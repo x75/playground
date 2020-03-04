@@ -101,7 +101,6 @@ class trigridDisplay(object):
         # self.resize((640, 480))
 
         self.setPerspective()
-        glTranslatef(-0.0, 0.0, -5)
         
         self.isrunning = False
         
@@ -117,8 +116,10 @@ class trigridDisplay(object):
         self.mesh = None
         self.isinit = True
         
-    def setPerspective(self):
+    def setPerspective(self, *args):
+        glLoadIdentity()
         gluPerspective(45, (self.displaysize[0]/self.displaysize[1]), 0.1, 50.0)
+        glTranslatef(-0.0, 0.0, -5)
 
     def setTranslate(self, trans):
         glTranslatef(trans[0], trans[1], trans[2])
@@ -195,6 +196,8 @@ class trigridDisplay(object):
                         self.loadmesh(qud[1])
                     elif qud[0] == '/facecolor':
                         self.facecolor(qud[1])
+                    elif qud[0] == '/perspective':
+                        self.setPerspective(qud[1])
             
             # event handling
             for event in pygame.event.get():

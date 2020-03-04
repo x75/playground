@@ -16,7 +16,7 @@ see trimesh, networkx
 from __future__ import division
 from __future__ import absolute_import
 
-import pickle, sys, time, threading, argparse, queue
+import pickle, sys, time, threading, argparse, queue, signal
 
 import pygame
 from pygame.locals import *
@@ -210,86 +210,6 @@ def make_vertex_facets_load(params):
     p = None
     v = None
     return (p, v)
-
-class runUpdate(threading.Thread):
-    def __init__(self, mesh, tris, density):
-        super(runUpdate, self).__init__()
-
-        self.isrunning = True
-        assert mesh is not None, "Need to supply mesh argument" 
-        assert tris is not None, "Need to supply tris argument" 
-        self.mesh = mesh
-        self.tris = tris
-        self.cnt = 0
-        self.density = density
-        
-    def run(self):
-        while self.isrunning:
-            # print('runUpdate')
-            self.mesh_update_state(self.cnt, self.mesh, self.tris, self.density)
-            self.cnt += 1
-            time.sleep(1/20.)
-
-    def mesh_update_state(self, cnt, mesh, tris, density):
-        event_density = density # 0.0001
-        # event_density = 0.001
-        # event_density = 0.01
-        # event_density = 0.1
-        # for tri_i, neighbors in enumerate(mesh.neighbors):
-        # print(cnt)
-        for tri_i, tri in enumerate(tris):
-
-            x_ = tris[tri_i]['state']
-            # print(tri_i, x_)
-            y_ = np.zeros_like(x_)
-            # periodic activation
-
-            # y_ += 0.05 * np.sin((cnt/20.0) * tris[tri_i]['freq'] * 2 * np.pi)
-            # y_ += 0.3 * np.sin(cnt/1000.0)**2
-            
-            # if tri_i == 0 and cnt % 100 == 0:
-            # if tri_i == 0 and np.random.uniform() < event_density:
-            if np.random.uniform() < event_density:
-                # print('refreshing state')
-                # tris[tri_i]['state'] = 1.0
-                y_ += 2.0 + np.random.uniform(0, 2)
-                # tris[tri_i]['state'] = x_
-
-        
-            # print(tri_i, neighbors)
-        
-            # print(valid_neighbors)
-            # for v_n in valid_neighbors:
-            for v_n in tri['neighbors']:
-                if v_n < 0:
-                    continue
-            
-                if tris[v_n]['state'] > 0.0:
-                    # x_ = 0.0 * tris[tri_i]['state'] + (0.9 * tris[v_n]['state'])
-                    # x_ = 0.5 * tris[tri_i]['state'] + (0.5 * tris[v_n]['state'])
-                    # coupling = 0.05
-                    coupling = 0.2
-                    transfer = coupling * tris[v_n]['state']
-                    y_ += transfer
-                    tris[v_n]['state'] -= transfer # coupling * tris[v_n]['state']
-
-        
-            # tris[tri_i]['state'] *= 0.5
-            # x_ = np.tanh(x_)
-            # x_ = np.sqrt(x_)
-        
-            # x_ = 0.92 * x_
-        
-            # decay activation
-            # tris[tri_i]['state'] *= 0.98
-            tris[tri_i]['state'] *= 0.8
-            
-            # add inputs
-            tris[tri_i]['state'] += y_
-            
-            # output transfer function
-            # tris[tri_i]['state_o'] = np.log(tris[tri_i]['state'] + 1) * 2
-            tris[tri_i]['state_o'] = np.tanh(tris[tri_i]['state'] * 5)
             
 class smnode(threading.Thread):
     def __init__(self, *args, **kwargs):
@@ -319,6 +239,11 @@ class smnode(threading.Thread):
         for k in ['smid', 'density', 'freq', 'color', 'neighbors']:
             if k in kwargs:
                 setattr(self, k, kwargs[k])
+
+        self.coef_loss = 0.95
+        self.coef_coupling = 0.5
+        # self.update = self.update_spontaneous
+        self.update = self.update_liquid
         
     def run(self):
         while self.isrunning:
@@ -332,7 +257,11 @@ class smnode(threading.Thread):
             self.cnt += 1
             time.sleep(1/20.)
 
-    def update(self):
+    def update_spontaneous(self):
+        """smnode.update
+
+        compute smnode state update
+        """
         # print('smnode-{0}.update {1}'.format(self.smid, self.inputs))
 
         x_ = self.state
@@ -341,7 +270,7 @@ class smnode(threading.Thread):
         # periodic activation
         
         # y_ += 0.05 * np.sin((self.cnt/20.0) * tris[tri_i]['freq'] * 2 * np.pi)
-        x_ += 0.02 * np.sin((self.cnt/20) * 2 * np.pi * self.freq)
+        # x_ += 1.0 * np.sin((self.cnt/20) * 2 * np.pi * self.freq)
         
         # if tri_i == 0 and cnt % 100 == 0:
         # if tri_i == 0 and np.random.uniform() < event_density:
@@ -384,6 +313,55 @@ class smnode(threading.Thread):
         # tris[tri_i]['state_o'] = np.log(tris[tri_i]['state'] + 1) * 2
         self.outputs['state_o'] = np.tanh(self.state * 5)
             
+    def update_liquid(self):
+        """smnode.update
+
+        compute smnode state update as a liquid
+        """
+        # print('smnode-{0}.update {1}'.format(self.smid, self.inputs))
+
+        x_ = self.state
+        # print(tri_i, x_)
+        y_ = np.zeros_like(x_)
+        # periodic activation
+        
+        # y_ += 0.05 * np.sin((self.cnt/20.0) * tris[tri_i]['freq'] * 2 * np.pi)
+        # x_ += 0.02 * np.sin((self.cnt/20) * 2 * np.pi * self.freq)
+        
+        # if tri_i == 0 and cnt % 100 == 0:
+        # if tri_i == 0 and np.random.uniform() < event_density:
+        if np.random.uniform() < self.density:
+            # print('refreshing state')
+            # tris[tri_i]['state'] = 1.0
+            y_ += 3.0 * np.random.uniform(-1, 1)
+            # tris[tri_i]['state'] = x_
+
+        
+        # print(tri_i, neighbors)
+        
+        # print(valid_neighbors)
+        for input_n in self.inputs:
+            
+            transfer = self.coef_coupling * self.inputs[input_n]
+            y_ += transfer
+            # tris[v_n]['state'] -= transfer # coupling * tris[v_n]['state']
+        
+        # activation decay
+        self.state *= self.coef_loss
+        
+        # add inputs
+        self.state += y_
+
+        if self.state >= 0:
+            self.color = np.array((1., 0, 0))
+        else:
+            self.color = np.array((0., 0, 1.0))
+        
+        # output transfer function
+        # tris[tri_i]['state_o'] = np.log(tris[tri_i]['state'] + 1) * 2
+        # self.outputs['state_o'] = np.tanh(self.state * 5) * 0.5 + 0.5
+        self.outputs['state_o'] = np.abs(np.tanh(self.state * 5))
+            
 class meshTrimesh(threading.Thread):
     def __init__(self, *args, **kwargs):
         super(meshTrimesh, self).__init__()
@@ -401,7 +379,7 @@ class meshTrimesh(threading.Thread):
         # self.osc_target = liblo.Address('localhost', 1234)
         self.osc_target = '1234'
         
-        self.coupling = 0.2
+        self.coupling = 0.4
         self.isrunning = True
         self.cnt = 0
         
@@ -414,14 +392,16 @@ class meshTrimesh(threading.Thread):
     def update(self):
         # todo
         # - loop over neighbors
-        for nbrs in self.mesh.face_adjacency:
+        # for nbrs in self.mesh.face_adjacency:
+        for nbrs in [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 0]]:
+            # print('nbrs', nbrs)
             # - populate node inputs with external values
             # self.mesh.face_attributes['smnode'][nbrs[0]].inputs['n{0}'.format(nbrs[1])] = self.mesh.face_attributes['state_o'][nbrs[1]]
             # self.mesh.face_attributes['smnode'][nbrs[1]].inputs['n{0}'.format(nbrs[0])] = self.mesh.face_attributes['state_o'][nbrs[0]]
             self.mesh.face_attributes['smnode'][nbrs[0]].inputs['n{0}'.format(nbrs[1])] = self.coupling * self.mesh.face_attributes['smnode'][nbrs[1]].state
             self.mesh.face_attributes['smnode'][nbrs[1]].state -= self.coupling * self.mesh.face_attributes['smnode'][nbrs[1]].state
-            self.mesh.face_attributes['smnode'][nbrs[1]].inputs['n{0}'.format(nbrs[0])] = self.mesh.face_attributes['smnode'][nbrs[0]].state
-            self.mesh.face_attributes['smnode'][nbrs[0]].state -= self.coupling * self.mesh.face_attributes['smnode'][nbrs[0]].state
+            # self.mesh.face_attributes['smnode'][nbrs[1]].inputs['n{0}'.format(nbrs[0])] = self.mesh.face_attributes['smnode'][nbrs[0]].state
+            # self.mesh.face_attributes['smnode'][nbrs[0]].state -= self.coupling * self.mesh.face_attributes['smnode'][nbrs[0]].state
         
     def make_mesh_triangle_trimesh(self, **params):
         """make_mesh_triangle_trimesh
@@ -575,7 +555,30 @@ def main(args):
     - populate with threaded nodes
     - render mesh based on fixed set of attributes
     """
-    
+    # define interrupt handler
+    def _interrupt_handler(signum, frame):
+        """Handle KeyboardInterrupt: quit application."""
+        print('Got QUIT event, terminating threads')
+        running = False
+        # terminate osc server
+        osc.isrunning = False
+        osc.join()
+        print('    osc stopped')
+        # terminate mesh update thread
+        mesh.isrunning = False
+        mesh.join()
+        print('    mesh stopped')
+        # join smnode threads from mesh
+        for i, face in enumerate(mesh.mesh.faces):
+            mesh.mesh.face_attributes['smnode'][i].isrunning = False
+            mesh.mesh.face_attributes['smnode'][i].join()
+        print('    smnodes stopped')
+        pygame.quit()
+        quit()
+        
+    # install interrupt handler
+    signal.signal(signal.SIGINT, _interrupt_handler)
+
     # get mesh generation parameters
     if args.meshlib == 'trimesh':
         dim = 3
@@ -662,6 +665,9 @@ def main(args):
         trans = [0, 0, -10]
 
     # osc.send_message(b'/translate', trans)
+    osc.server.send(osc_target, '/perspective', 0)
+    
+    # osc.send_message(b'/translate', trans)
     osc.server.send(osc_target, '/translate', *trans)
         
     # glScalef(2.0, 2.0, 2.0)
@@ -679,20 +685,8 @@ def main(args):
             # quit event
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
             # if event.type == pygame.QUIT:
-                print('Got QUIT event')
-                running = False
-                # ru.isrunning = False
-                # ru.join()
-                # terminate mesh update thread
-                mesh.isrunning = False
-                mesh.join()
-                # join smnode threads from mesh
-                for i, face in enumerate(mesh.mesh.faces):
-                    mesh.mesh.face_attributes['smnode'][i].isrunning = False
-                    mesh.mesh.face_attributes['smnode'][i].join()
-                pygame.quit()
-                quit()
-
+                _interrupt_handler()
+                
         # # glRotatef(1, 3, 3, 3)
         # glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
 
@@ -704,8 +698,25 @@ def main(args):
         
         # pygame.display.flip()
         # # pygame.time.wait(20)
+        # try:
         pygame.time.wait(40)
+        # time.sleep(0.04)
+        # except Exception as e:
+        #     print('failed with {0}'.format(e))
 
+# from https://coldfix.de/2016/11/08/pyqt-boilerplate/#keyboardinterrupt-ctrl-c
+# Call this function in your main after creating the QApplication
+def setup_interrupt_handling():
+    """Setup handling of KeyboardInterrupt (Ctrl-C) for PyQt."""
+    
+    # Regularly run some (any) python code, so the signal handler gets a
+    # chance to be executed:
+    # safe_timer(50, lambda: None)
+
+
+# Define this as a global function to make sure it is not garbage
+# collected when going out of scope:
+        
 if __name__ == '__main__':
     # command line arguments
     parser = argparse.ArgumentParser()
@@ -715,5 +726,5 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--meshlib', type=str, default='trimesh', help='Which meshlib to use [trimesh] (trimesh, meshpy)')
 
     args = parser.parse_args()
-    
+
     main(args)

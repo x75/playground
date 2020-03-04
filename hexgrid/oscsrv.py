@@ -18,6 +18,7 @@ class OSCsrv(object):
         # self.server.add_method("/mfcc", 'f' * 38, self.cb_mfcc)
         # self.server.add_method("/beat", 'f' * 3, self.cb_beat)
         self.server.add_method("/address", 'if', self.cb_address)
+        self.server.add_method("/perspective", 'f', self.cb_perspective)
         self.server.add_method("/translate", 'fff', self.cb_translate)
         self.server.add_method("/scale", 'fff', self.cb_scale)
         self.server.add_method("/vert", 'fffffffffffff', self.cb_vert)
@@ -32,6 +33,11 @@ class OSCsrv(object):
     def cb_address(self, path, args):
         # print('received args {0}'.format(args))
         self.address = args
+        self.queue.put((path, args))
+        
+    def cb_perspective(self, path, args):
+        print('cb_perspective received args {0}'.format(args))
+        self.perspective = args
         self.queue.put((path, args))
         
     def cb_translate(self, path, args):
@@ -77,5 +83,7 @@ class OSCsrv(object):
         # loop and dispatch messages every 100ms
         while self.isrunning:
             self.server.recv(100)
-        print('terminating')
+        print('oscsrv run terminating')
 
+    def join(self):
+        self.st.join()
