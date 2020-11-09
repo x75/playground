@@ -507,6 +507,275 @@ class GrainCloudFoo(object):
             'Robert R Graham_0023.559062.wav',
             'Robert R Graham_0024.483417.wav',
         ]
+
+        self.filenames_prefix = '/home/lib/audio/work/tsx_recur_2/sue/672 Alexandra Parade 10-c/'
+        self.filenames = [
+            '672 Alexandra Parade 10-c_0000.000000.wav',
+            '672 Alexandra Parade 10-c_0001.256729.wav',
+            '672 Alexandra Parade 10-c_0003.075000.wav',
+            '672 Alexandra Parade 10-c_0003.827437.wav',
+            '672 Alexandra Parade 10-c_0004.150479.wav',
+            '672 Alexandra Parade 10-c_0004.434188.wav',
+            '672 Alexandra Parade 10-c_0005.501563.wav',
+            '672 Alexandra Parade 10-c_0009.288271.wav',
+            '672 Alexandra Parade 10-c_0009.474771.wav',
+            '672 Alexandra Parade 10-c_0012.677437.wav',
+            '672 Alexandra Parade 10-c_0019.825021.wav',
+            '672 Alexandra Parade 10-c_0021.449583.wav',
+        ]
+        
+        # self.filenames_prefix = '/home/lib/audio/work/tsx_recur_2/sue/672 Alexandra Parade 11-c/'
+        # self.filenames = [
+        #     '672 Alexandra Parade 11-c_0000.000000.wav',
+        #     '672 Alexandra Parade 11-c_0001.252958.wav',
+        #     '672 Alexandra Parade 11-c_0001.449167.wav',
+        #     '672 Alexandra Parade 11-c_0004.642354.wav',
+        #     '672 Alexandra Parade 11-c_0004.841917.wav',
+        #     '672 Alexandra Parade 11-c_0008.085062.wav',
+        #     '672 Alexandra Parade 11-c_0011.539938.wav',
+        # ]
+        
+        # self.filenames_prefix = '/home/lib/audio/work/tsx_recur_2/sue/672 Alexandra Parade 12-c/'
+        # self.filenames = [
+        # ]
+
+        self.filenames_prefix = '/home/lib/audio/work/tsx_4_sco_1/VID-20200218-converted/'
+        self.filenames = [
+            'VID-20200218-converted_0000.000000.wav',
+            'VID-20200218-converted_0000.017415.wav',
+            'VID-20200218-converted_0002.526236.wav',
+            'VID-20200218-converted_0005.613220.wav',
+            'VID-20200218-converted_0005.977846.wav',
+            'VID-20200218-converted_0006.355465.wav',
+            'VID-20200218-converted_0007.284150.wav',
+            'VID-20200218-converted_0008.570703.wav',
+            'VID-20200218-converted_0009.048980.wav',
+            'VID-20200218-converted_0009.652517.wav',
+            'VID-20200218-converted_0009.736145.wav',
+            'VID-20200218-converted_0010.050295.wav',
+            'VID-20200218-converted_0010.527755.wav',
+            'VID-20200218-converted_0010.872562.wav',
+            'VID-20200218-converted_0012.189274.wav',
+            'VID-20200218-converted_0012.584512.wav',
+            'VID-20200218-converted_0012.708617.wav',
+            'VID-20200218-converted_0013.050794.wav',
+            'VID-20200218-converted_0013.534671.wav',
+            'VID-20200218-converted_0013.870726.wav',
+            'VID-20200218-converted_0014.427800.wav',
+            'VID-20200218-converted_0014.805850.wav',
+            'VID-20200218-converted_0014.942540.wav',
+            'VID-20200218-converted_0015.132132.wav',
+            'VID-20200218-converted_0015.303469.wav',
+            'VID-20200218-converted_0015.901905.wav',
+            'VID-20200218-converted_0016.311746.wav',
+            'VID-20200218-converted_0016.611950.wav',
+            'VID-20200218-converted_0017.674671.wav',
+            'VID-20200218-converted_0018.353197.wav',
+            'VID-20200218-converted_0018.505079.wav',
+            'VID-20200218-converted_0018.633152.wav',
+            'VID-20200218-converted_0019.048254.wav',
+            'VID-20200218-converted_0019.325238.wav',
+            'VID-20200218-converted_0019.965692.wav',
+            'VID-20200218-converted_0020.996803.wav',
+            'VID-20200218-converted_0021.297868.wav',
+            'VID-20200218-converted_0021.524717.wav',
+            'VID-20200218-converted_0022.125760.wav',
+            'VID-20200218-converted_0022.687120.wav',
+            'VID-20200218-converted_0023.178594.wav',
+            'VID-20200218-converted_0026.331020.wav',
+            'VID-20200218-converted_0027.816689.wav',
+            'VID-20200218-converted_0029.429773.wav',
+            'VID-20200218-converted_0030.249410.wav',
+            'VID-20200218-converted_0030.609977.wav',
+            'VID-20200218-converted_0031.979909.wav',
+            'VID-20200218-converted_0032.097846.wav',
+            'VID-20200218-converted_0032.429365.wav',
+            'VID-20200218-converted_0033.024830.wav',
+            'VID-20200218-converted_0033.258481.wav',
+            'VID-20200218-converted_0033.641224.wav',
+            'VID-20200218-converted_0034.032290.wav',
+            'VID-20200218-converted_0034.469025.wav',
+            'VID-20200218-converted_0034.623900.wav',
+            'VID-20200218-converted_0034.762336.wav',
+            'VID-20200218-converted_0035.361020.wav',
+            'VID-20200218-converted_0035.824807.wav',
+            'VID-20200218-converted_0035.910113.wav',
+            'VID-20200218-converted_0036.844966.wav',
+            'VID-20200218-converted_0036.956621.wav',
+            'VID-20200218-converted_0037.950567.wav',
+            'VID-20200218-converted_0039.081361.wav',
+            'VID-20200218-converted_0039.282971.wav',
+            'VID-20200218-converted_0039.723107.wav',
+            'VID-20200218-converted_0041.316984.wav',
+            'VID-20200218-converted_0041.545805.wav',
+            'VID-20200218-converted_0042.977528.wav',
+            'VID-20200218-converted_0043.406599.wav',
+            'VID-20200218-converted_0044.303379.wav',
+            'VID-20200218-converted_0044.541474.wav',
+            'VID-20200218-converted_0044.780816.wav',
+            'VID-20200218-converted_0045.023628.wav',
+            'VID-20200218-converted_0045.255828.wav',
+            'VID-20200218-converted_0046.297166.wav',
+            'VID-20200218-converted_0046.517460.wav',
+            'VID-20200218-converted_0047.039841.wav',
+            'VID-20200218-converted_0048.217438.wav',
+            'VID-20200218-converted_0048.763787.wav',
+            'VID-20200218-converted_0049.157868.wav',
+            'VID-20200218-converted_0050.088299.wav',
+            'VID-20200218-converted_0050.324308.wav',
+            'VID-20200218-converted_0050.829161.wav',
+            'VID-20200218-converted_0051.135306.wav',
+            'VID-20200218-converted_0051.339138.wav',
+            'VID-20200218-converted_0051.723447.wav',
+            'VID-20200218-converted_0052.255488.wav',
+            'VID-20200218-converted_0053.352540.wav',
+        ]
+        
+        # 2020-11-06 processing sco voice track
+        self.filenames_prefix = '/home/lib/audio/work/sco_voice_foo/sco-voice-AUD-20201030-WA0000-seg150/'
+        self.filenames = [
+            'sco-voice-AUD-20201030-WA0000_0000.000000.wav',
+            'sco-voice-AUD-20201030-WA0000_0000.064921.wav',
+            'sco-voice-AUD-20201030-WA0000_0003.038980.wav',
+            'sco-voice-AUD-20201030-WA0000_0003.665442.wav',
+            'sco-voice-AUD-20201030-WA0000_0003.880522.wav',
+            'sco-voice-AUD-20201030-WA0000_0003.969524.wav',
+            'sco-voice-AUD-20201030-WA0000_0004.251020.wav',
+            'sco-voice-AUD-20201030-WA0000_0004.263764.wav',
+            'sco-voice-AUD-20201030-WA0000_0004.538095.wav',
+            'sco-voice-AUD-20201030-WA0000_0004.720839.wav',
+            'sco-voice-AUD-20201030-WA0000_0004.811565.wav',
+            'sco-voice-AUD-20201030-WA0000_0005.081361.wav',
+            'sco-voice-AUD-20201030-WA0000_0006.078231.wav',
+            'sco-voice-AUD-20201030-WA0000_0006.233175.wav',
+            'sco-voice-AUD-20201030-WA0000_0006.487982.wav',
+            'sco-voice-AUD-20201030-WA0000_0006.625238.wav',
+            'sco-voice-AUD-20201030-WA0000_0006.671224.wav',
+            'sco-voice-AUD-20201030-WA0000_0006.799116.wav',
+            'sco-voice-AUD-20201030-WA0000_0007.115918.wav',
+            'sco-voice-AUD-20201030-WA0000_0008.033197.wav',
+            'sco-voice-AUD-20201030-WA0000_0008.083900.wav',
+            'sco-voice-AUD-20201030-WA0000_0008.302540.wav',
+            'sco-voice-AUD-20201030-WA0000_0009.950612.wav',
+            'sco-voice-AUD-20201030-WA0000_0010.822494.wav',
+            'sco-voice-AUD-20201030-WA0000_0011.174195.wav',
+            'sco-voice-AUD-20201030-WA0000_0012.297891.wav',
+            'sco-voice-AUD-20201030-WA0000_0013.200658.wav',
+            'sco-voice-AUD-20201030-WA0000_0013.548844.wav',
+            'sco-voice-AUD-20201030-WA0000_0014.914399.wav',
+            'sco-voice-AUD-20201030-WA0000_0015.049320.wav',
+            'sco-voice-AUD-20201030-WA0000_0015.502562.wav',
+            'sco-voice-AUD-20201030-WA0000_0018.029206.wav',
+            'sco-voice-AUD-20201030-WA0000_0018.614807.wav',
+            'sco-voice-AUD-20201030-WA0000_0019.820862.wav',
+            'sco-voice-AUD-20201030-WA0000_0021.021814.wav',
+            'sco-voice-AUD-20201030-WA0000_0021.946735.wav',
+            'sco-voice-AUD-20201030-WA0000_0023.142744.wav',
+            'sco-voice-AUD-20201030-WA0000_0024.956757.wav',
+            'sco-voice-AUD-20201030-WA0000_0025.095692.wav',
+            'sco-voice-AUD-20201030-WA0000_0026.744739.wav',
+            'sco-voice-AUD-20201030-WA0000_0027.201723.wav',
+            'sco-voice-AUD-20201030-WA0000_0028.177732.wav',
+            'sco-voice-AUD-20201030-WA0000_0029.180068.wav',
+            'sco-voice-AUD-20201030-WA0000_0029.874671.wav',
+            'sco-voice-AUD-20201030-WA0000_0030.616599.wav',
+            'sco-voice-AUD-20201030-WA0000_0032.105034.wav',
+            'sco-voice-AUD-20201030-WA0000_0032.289070.wav',
+            'sco-voice-AUD-20201030-WA0000_0034.239229.wav',
+            'sco-voice-AUD-20201030-WA0000_0035.439501.wav',
+            'sco-voice-AUD-20201030-WA0000_0039.035034.wav',
+            'sco-voice-AUD-20201030-WA0000_0039.322744.wav',
+            'sco-voice-AUD-20201030-WA0000_0042.620340.wav',
+            'sco-voice-AUD-20201030-WA0000_0042.927347.wav',
+            'sco-voice-AUD-20201030-WA0000_0043.847188.wav',
+            'sco-voice-AUD-20201030-WA0000_0044.139048.wav',
+            'sco-voice-AUD-20201030-WA0000_0045.068844.wav',
+            'sco-voice-AUD-20201030-WA0000_0047.430544.wav',
+            'sco-voice-AUD-20201030-WA0000_0047.723719.wav',
+            'sco-voice-AUD-20201030-WA0000_0048.648481.wav',
+            'sco-voice-AUD-20201030-WA0000_0048.936349.wav',
+            'sco-voice-AUD-20201030-WA0000_0049.813832.wav',
+            'sco-voice-AUD-20201030-WA0000_0050.125397.wav',
+            'sco-voice-AUD-20201030-WA0000_0050.419161.wav',
+            'sco-voice-AUD-20201030-WA0000_0052.233878.wav',
+            'sco-voice-AUD-20201030-WA0000_0052.524127.wav',
+            'sco-voice-AUD-20201030-WA0000_0053.450317.wav',
+            'sco-voice-AUD-20201030-WA0000_0053.743810.wav',
+            'sco-voice-AUD-20201030-WA0000_0060.628957.wav',
+            'sco-voice-AUD-20201030-WA0000_0060.929796.wav',
+            'sco-voice-AUD-20201030-WA0000_0061.484671.wav',
+            'sco-voice-AUD-20201030-WA0000_0062.096281.wav',
+            'sco-voice-AUD-20201030-WA0000_0063.056689.wav',
+            'sco-voice-AUD-20201030-WA0000_0063.335283.wav',
+            'sco-voice-AUD-20201030-WA0000_0063.926553.wav',
+            'sco-voice-AUD-20201030-WA0000_0065.135193.wav',
+            'sco-voice-AUD-20201030-WA0000_0067.241814.wav',
+            'sco-voice-AUD-20201030-WA0000_0067.477370.wav',
+            'sco-voice-AUD-20201030-WA0000_0069.075782.wav',
+            'sco-voice-AUD-20201030-WA0000_0069.895964.wav',
+            'sco-voice-AUD-20201030-WA0000_0070.281066.wav',
+            'sco-voice-AUD-20201030-WA0000_0070.493900.wav',
+            'sco-voice-AUD-20201030-WA0000_0073.826984.wav',
+            'sco-voice-AUD-20201030-WA0000_0074.125057.wav',
+            'sco-voice-AUD-20201030-WA0000_0074.286916.wav',
+            'sco-voice-AUD-20201030-WA0000_0074.685578.wav',
+            'sco-voice-AUD-20201030-WA0000_0075.281066.wav',
+            'sco-voice-AUD-20201030-WA0000_0075.450567.wav',
+            'sco-voice-AUD-20201030-WA0000_0075.855193.wav',
+            'sco-voice-AUD-20201030-WA0000_0076.220136.wav',
+            'sco-voice-AUD-20201030-WA0000_0076.533560.wav',
+            'sco-voice-AUD-20201030-WA0000_0077.438685.wav',
+            'sco-voice-AUD-20201030-WA0000_0077.733311.wav',
+            'sco-voice-AUD-20201030-WA0000_0077.932426.wav',
+            'sco-voice-AUD-20201030-WA0000_0079.234331.wav',
+            'sco-voice-AUD-20201030-WA0000_0079.557914.wav',
+            'sco-voice-AUD-20201030-WA0000_0080.139297.wav',
+            'sco-voice-AUD-20201030-WA0000_0081.642857.wav',
+            'sco-voice-AUD-20201030-WA0000_0082.265465.wav',
+            'sco-voice-AUD-20201030-WA0000_0082.526939.wav',
+            'sco-voice-AUD-20201030-WA0000_0082.851837.wav',
+            'sco-voice-AUD-20201030-WA0000_0084.026939.wav',
+            'sco-voice-AUD-20201030-WA0000_0084.303991.wav',
+            'sco-voice-AUD-20201030-WA0000_0084.660522.wav',
+            'sco-voice-AUD-20201030-WA0000_0085.394762.wav',
+            'sco-voice-AUD-20201030-WA0000_0086.073515.wav',
+            'sco-voice-AUD-20201030-WA0000_0088.208027.wav',
+            'sco-voice-AUD-20201030-WA0000_0088.508413.wav',
+            'sco-voice-AUD-20201030-WA0000_0089.408005.wav',
+            'sco-voice-AUD-20201030-WA0000_0089.699002.wav',
+            'sco-voice-AUD-20201030-WA0000_0091.197483.wav',
+            'sco-voice-AUD-20201030-WA0000_0094.222540.wav',
+            'sco-voice-AUD-20201030-WA0000_0094.516190.wav',
+            'sco-voice-AUD-20201030-WA0000_0095.444399.wav',
+            'sco-voice-AUD-20201030-WA0000_0098.099252.wav',
+            'sco-voice-AUD-20201030-WA0000_0099.021315.wav',
+            'sco-voice-AUD-20201030-WA0000_0099.311043.wav',
+            'sco-voice-AUD-20201030-WA0000_0100.184422.wav',
+            'sco-voice-AUD-20201030-WA0000_0100.499637.wav',
+            'sco-voice-AUD-20201030-WA0000_0100.802426.wav',
+            'sco-voice-AUD-20201030-WA0000_0102.035873.wav',
+            'sco-voice-AUD-20201030-WA0000_0102.611293.wav',
+            'sco-voice-AUD-20201030-WA0000_0102.898912.wav',
+            'sco-voice-AUD-20201030-WA0000_0103.825964.wav',
+            'sco-voice-AUD-20201030-WA0000_0104.118345.wav',
+            'sco-voice-AUD-20201030-WA0000_0109.523175.wav',
+            'sco-voice-AUD-20201030-WA0000_0109.673515.wav',
+            'sco-voice-AUD-20201030-WA0000_0112.997392.wav',
+            'sco-voice-AUD-20201030-WA0000_0113.182766.wav',
+            'sco-voice-AUD-20201030-WA0000_0113.401020.wav',
+            'sco-voice-AUD-20201030-WA0000_0114.635488.wav',
+            'sco-voice-AUD-20201030-WA0000_0114.966712.wav',
+            'sco-voice-AUD-20201030-WA0000_0115.801224.wav',
+            'sco-voice-AUD-20201030-WA0000_0116.479025.wav',
+            'sco-voice-AUD-20201030-WA0000_0117.055850.wav',
+            'sco-voice-AUD-20201030-WA0000_0118.937279.wav',
+            'sco-voice-AUD-20201030-WA0000_0119.412676.wav',
+            'sco-voice-AUD-20201030-WA0000_0119.691837.wav',
+            'sco-voice-AUD-20201030-WA0000_0121.501859.wav',
+            'sco-voice-AUD-20201030-WA0000_0124.678299.wav',
+            'sco-voice-AUD-20201030-WA0000_0124.757415.wav',
+        ]
+        
         self.output_prefix = self.filenames_prefix + '/proc/'
 
         self.filename_i = 0
@@ -628,6 +897,7 @@ class GrainCloudFoo(object):
 
     def fxgo(self):
         # snd = dsp.read('%s/sounds/harpc2.wav' % PATH)
+        print(f'fxgo opening filename {self.filename}')
         snd = dsp.read(self.filename)
         snd = fx.go(snd,
                     # factor=200 + np.random.normal(0, 10),
@@ -636,10 +906,26 @@ class GrainCloudFoo(object):
                     # density=np.random.uniform(1e-2, 0.99), # 0.65,
                     # minlength=np.random.uniform(1e-3, 1e-2), # 0.01,
                     # maxlength=np.random.uniform(4e-2, 1e-1), # 0.04
-                    factor=100 + np.random.normal(0, 10),
+                    
+                    # factor=100 + np.random.normal(0, 10),
+                    # minclip=0.125 * 2,
+                    # maxclip=0.5 * 2,
+                    # density=np.random.uniform(1e-2, 0.65),
+                    # minlength=np.random.uniform(1e-2, 1e-1), # 0.01,
+                    # maxlength=np.random.uniform(2e-1, 5e-1), # 0.04
+
+                    # factor=10 + np.random.normal(0, 10),
+                    # minclip=0.125 * 2,
+                    # maxclip=0.5 * 1.5,
+                    # density=np.random.uniform(1e-2, 0.1),
+                    # minlength=np.random.uniform(1e-2, 1e-1), # 0.01,
+                    # maxlength=np.random.uniform(2e-1, 5e-1), # 0.04
+                    
+                    # 2020-11-06 sco voice
+                    factor=10 + np.random.normal(0, 10),
                     minclip=0.125 * 2,
-                    maxclip=0.5 * 2,
-                    density=np.random.uniform(1e-2, 0.65),
+                    maxclip=0.5 * 1.5,
+                    density=np.random.uniform(1e-2, 0.1),
                     minlength=np.random.uniform(1e-2, 1e-1), # 0.01,
                     maxlength=np.random.uniform(2e-1, 5e-1), # 0.04
         )
@@ -654,9 +940,11 @@ class GrainCloudFoo(object):
 
         def makecloud(density):
             print('cloud density', density)
-            return grains.GrainCloud(snd * 0.125,
+            return grains.GrainCloud(snd * 0.125 * 3,
+                                     
                                      win=dsp.HANN,
-                                     read_lfo=dsp.PHASOR,
+                                     # read_lfo=dsp.PHASOR,
+                                     read_lfo=dsp.SAW,
                                      speed_lfo_wt=interpolation.linear([ random.random() for _ in range(random.randint(10, 1000)) ], 4096), 
                                      density_lfo_wt=interpolation.linear([ random.random() for _ in range(random.randint(10, 1000)) ], 4096),
                                      grainlength_lfo_wt=interpolation.linear([ random.random() for _ in range(random.randint(10, 500)) ], 4096),
@@ -691,7 +979,7 @@ class GrainCloudFoo(object):
         start_time = time.time()
 
         out = dsp.buffer(length=4)
-        freqs = tune.fromdegrees([1,2,3,4,5,6,7,8,9], octave=-8, root='d')
+        freqs = tune.fromdegrees([1,2,3,4,5,6,7,8,9], octave=-12, root='d')
         print(freqs)
         
         snd = dsp.read(self.filename)
@@ -713,6 +1001,7 @@ class GrainCloudFoo(object):
             wtoffset = random.randint(0, len(snd) - wtlen - 1)
             wavetable = [0] + [ snd[wtoffset + _][0] for _ in range(wtlen) ] + [0]
             mod = [ random.triangular(0, 1) for _ in range(random.randint(3, 20)) ]
+            # osc = oscs.Osc(wavetable, window=dsp.RND, mod=mod)
             osc = oscs.Osc(wavetable, window=dsp.RND, mod=mod)
             pulsewidth = random.random()
             
@@ -721,7 +1010,8 @@ class GrainCloudFoo(object):
             mod_freq = random.triangular(0.01, 30)
             # mod_range = random.triangular(0, random.choice([0.03, 0.02, 0.01, 3]))
             mod_range = random.triangular(0, random.choice([0.1, 0.2, 0.3, 1.0]))
-            amp = random.triangular(0.05, 0.5)
+            # amp = random.triangular(0.05, 0.5)
+            amp = random.triangular(0.2, 2.0)
 
             if mod_range > 1:
                 amp *= 0.5

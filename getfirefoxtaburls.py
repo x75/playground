@@ -15,6 +15,9 @@ dejsonlz4 ~/.mozilla/firefox/RANDOM.profile/sessionstore-backups/recovery.jsonlz
 import json, sys, os, argparse
 import pprint as pp
 
+output_mode = 'plain'
+output_mode = 'csv'
+
 def main(args):
     if args.file is None:
         print('Need to provide session file with -f sessionfile.json, exiting')
@@ -31,6 +34,13 @@ def main(args):
     f.close()
 
     # print('tabs\n{0}'.format(pp.pformat(jdata)))
+
+    if output_mode == 'csv':
+        import csv
+        header = ['win','tab','title','url']
+        # f = sys.stdout
+        csv_writer = csv.writer(sys.stdout, quoting=csv.QUOTE_NONNUMERIC)
+        csv_writer.writerow(header) # write header
     
     for win_i, win in enumerate(jdata.get("windows")):
         # print('window {0}'.format(win))
@@ -48,7 +58,14 @@ def main(args):
                 tabentry = tabentries[-1]
                 # print(.get("url"))
                 # .get("url")
-                print('    {2:03d} - {0} - {1}'.format(tabentry.get('title'), tabentry.get('url'), tab_i))
+                if output_mode == 'plain':
+                    print('    {2:03d} - {0} - {1}'.format(tabentry.get('title'), tabentry.get('url'), tab_i))
+                elif output_mode == 'csv':
+                    # csv_writer.writerows(rows)
+                    # print('{3},{2},{0},{1},'.format(tabentry.get('title'), tabentry.get('url'), tab_i, win_i))
+                    row = [win_i, tab_i, tabentry.get('title'), tabentry.get('url')]
+                    csv_writer.writerow(row)
+                    
             except Exception as e:
                 print('tabentries failed with {0}'.format(e))
                 
